@@ -1,0 +1,269 @@
+<!DOCTYPE html><html lang="en">
+<head><meta charset="UTF-8"><title>CyberSec | Incidents</title>
+<link rel="stylesheet" href="css/cyber.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+<nav class="sidebar">
+<div class="sidebar-logo">CYBER<span>SEC</span></div>
+<div style="font-size:9px;color:#8899aa;padding:2px 20px 8px;letter-spacing:1px;">SOC Command Center</div>
+<div style="padding:6px 20px;display:flex;align-items:center;gap:6px;font-size:10px;color:#00ff88;border-bottom:1px solid #1a3a5c;">
+<span style="width:6px;height:6px;border-radius:50%;background:#00ff88;display:inline-block;animation:pulse 2s infinite;"></span>
+System Active
+</div>
+<div style="font-size:9px;color:#8899aa;letter-spacing:2px;padding:10px 20px 4px;">NAVIGATION</div>
+<a href="dashboard.html" class="nav-item"><span class="nav-icon">&#9889;</span> Dashboard</a>
+<a href="threats.html" class="nav-item"><span class="nav-icon">&#9760;</span> Threats</a>
+<a href="incidents.html" class="nav-item active"><span class="nav-icon">&#9888;</span> Incidents</a>
+<a href="vulnerabilities.html" class="nav-item"><span class="nav-icon">&#9673;</span> Vulnerabilities</a>
+<a href="patches.html" class="nav-item"><span class="nav-icon">&#10004;</span> Patches</a>
+<a href="auditlogs.html" class="nav-item"><span class="nav-icon">&#9998;</span> Audit Logs</a>
+<a href="systems.html" class="nav-item"><span class="nav-icon">&#128187;</span> Systems</a>
+<a href="analyst.html" class="nav-item"><span class="nav-icon">&#128100;</span> Analysts</a>
+<a href="users.html" class="nav-item"><span class="nav-icon">&#128272;</span> Users</a>
+
+<div style="margin-top:auto;">
+<div style="padding:10px 20px;border-top:1px solid #1a3a5c;">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;" id="sidebarUser">
+<div style="width:32px;height:32px;border-radius:50%;background:rgba(0,212,255,0.15);border:1px solid #00d4ff;display:flex;align-items:center;justify-content:center;color:#00d4ff;font-size:11px;font-weight:bold;flex-shrink:0;" id="uavatar">AD</div>
+<div>
+<div style="color:#e0e6f0;font-size:11px;" id="uname">admin</div>
+<div style="color:#8899aa;font-size:9px;" id="roleBadge">Administrator</div>
+</div>
+</div>
+<button onclick="logout()" style="width:100%;padding:9px;background:rgba(255,62,108,0.1);border:1px solid #ff3e6c;color:#ff3e6c;cursor:pointer;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;border-radius:4px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.background='#ff3e6c';this.style.color='#0a0e1a';" onmouseout="this.style.background='rgba(255,62,108,0.1)';this.style.color='#ff3e6c';">
+&#9211; LOGOUT
+</button>
+</div>
+</div>
+</nav>
+
+<div class="main">
+<div class="page-header">
+  <div class="page-title">INCIDENTS <span>LOG</span></div>
+  <div class="page-header-right">
+    <button class="btn-export" onclick="window._table?.exportCSV()">⬇ EXPORT CSV</button>
+    <button class="btn-export" style="border-color:var(--red);color:var(--red)" onclick="exportPDF()">⬇ PDF</button>
+    <button class="btn" onclick="openModal()">+ LOG INCIDENT</button>
+  </div>
+</div>
+
+<!-- Mini chart -->
+<div class="mini-chart-card">
+  <div class="mini-chart-title">INCIDENT STATUS BREAKDOWN <span style="font-size:9px;color:var(--subtext)">from current data</span></div>
+  <canvas id="incidentChart" height="60"></canvas>
+</div>
+
+<!-- Toolbar -->
+<div class="table-toolbar">
+  <div class="search-box"><input id="searchBox" type="text" placeholder="Search incidents..."/></div>
+  <select id="statusFilter" class="filter-select">
+    <option value="">ALL STATUS</option>
+    <option value="Open">Open</option>
+    <option value="In Progress">In Progress</option>
+    <option value="Resolved">Resolved</option>
+  </select>
+  <select id="severityFilter" class="filter-select">
+    <option value="">ALL SEVERITY</option>
+    <option value="Critical">Critical</option>
+    <option value="High">High</option>
+    <option value="Medium">Medium</option>
+    <option value="Low">Low</option>
+  </select>
+  <div class="date-range">
+    <span class="date-range-label">FROM</span>
+    <input type="date" id="dateFrom"/>
+    <span class="date-range-label">TO</span>
+    <input type="date" id="dateTo"/>
+  </div>
+  <span id="recordCount" class="record-count"></span>
+</div>
+
+<div class="table-wrap">
+<table class="cyber-table">
+<thead><tr>
+  <th data-col="incident_id" onclick="window._table?.sortBy('incident_id')"># <span class="sort-icon">⇅</span></th>
+  <th data-col="threat_name" onclick="window._table?.sortBy('threat_name')">THREAT <span class="sort-icon">⇅</span></th>
+  <th data-col="severity_level" onclick="window._table?.sortBy('severity_level')">SEVERITY <span class="sort-icon">⇅</span></th>
+  <th data-col="system_name" onclick="window._table?.sortBy('system_name')">SYSTEM <span class="sort-icon">⇅</span></th>
+  <th data-col="analyst_name" onclick="window._table?.sortBy('analyst_name')">ANALYST <span class="sort-icon">⇅</span></th>
+  <th data-col="incident_date" onclick="window._table?.sortBy('incident_date')">DATE <span class="sort-icon">⇅</span></th>
+  <th data-col="status" onclick="window._table?.sortBy('status')">STATUS <span class="sort-icon">⇅</span></th>
+  <th>ACTION</th>
+</tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+<div id="pagination" class="pagination"></div>
+</div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modal"><div class="modal">
+<div class="modal-title" id="modalTitle">LOG INCIDENT</div>
+<input type="hidden" id="editId"/>
+<div class="form-group"><label>THREAT</label><select id="f1"></select></div>
+<div class="form-group"><label>SYSTEM</label><select id="f2"></select></div>
+<div class="form-group"><label>ANALYST</label><select id="f3"></select></div>
+<div class="form-group"><label>STATUS</label>
+<select id="f4"><option>Open</option><option>In Progress</option><option>Resolved</option></select></div>
+<div style="display:flex;gap:10px;justify-content:flex-end">
+<button class="btn btn-red" onclick="closeModal()">CANCEL</button>
+<button class="btn btn-green" onclick="save()">SAVE</button>
+</div>
+</div></div>
+
+<!-- Custom Confirm Modal -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <div class="confirm-title" id="confirmTitle">CONFIRM DELETE</div>
+    <div class="confirm-msg" id="confirmMsg">Are you sure you want to delete this record?</div>
+    <div class="confirm-btns">
+      <button class="btn btn-red" onclick="confirmNo()">CANCEL</button>
+      <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="confirmYes()">DELETE</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  if(!localStorage.getItem("cy_user")){window.location.href="index.html";return;}
+  const u=JSON.parse(localStorage.getItem("cy_user")||"{}");
+  const av=document.getElementById("uavatar");
+  const un=document.getElementById("uname");
+  if(av && u.username) av.textContent=u.username.substring(0,2).toUpperCase();
+  if(un && u.username) un.textContent=u.username;
+  const rb=document.getElementById("roleBadge");
+  if(rb && u.role) rb.textContent=u.role.charAt(0).toUpperCase()+u.role.slice(1);
+})();
+</script>
+<script src="js/app.js"></script>
+<script>
+let incChart = null;
+
+window._table = new CyberTable({
+  tbodyId: "tbody",
+  searchId: "searchBox",
+  filterSelects: [
+    {id:"statusFilter",   col:"status"},
+    {id:"severityFilter", col:"severity_level"}
+  ],
+  dateRangeIds: {from:"dateFrom", to:"dateTo", col:"incident_date"},
+  countId: "recordCount",
+  paginationId: "pagination",
+  exportBtnId: "exportBtn",
+  columns: [
+    {key:"incident_id",  label:"ID"},
+    {key:"threat_name",  label:"Threat"},
+    {key:"severity_level",label:"Severity"},
+    {key:"system_name",  label:"System"},
+    {key:"analyst_name", label:"Analyst"},
+    {key:"incident_date",label:"Date"},
+    {key:"status",       label:"Status"}
+  ],
+  renderRow: i => `
+    <tr>
+    <td>${i.incident_id}</td>
+    <td>${i.threat_name||"?"}</td>
+    <td><span class="badge badge-${(i.severity_level||"low").toLowerCase()}">${i.severity_level||""}</span></td>
+    <td>${i.system_name||"?"}</td>
+    <td>${i.analyst_name||"?"}</td>
+    <td>${(i.incident_date||"").substring(0,10)}</td>
+    <td><span class="badge badge-${(i.status||"open").toLowerCase().replace(/ /g,"")}">${i.status}</span></td>
+    <td style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="btn btn-green btn-sm" onclick="editModal(${i.incident_id})">EDIT</button>
+      <button class="btn btn-green btn-sm" onclick="resolve(${i.incident_id})">✓</button>
+      <button class="btn btn-red btn-sm" onclick="del(${i.incident_id})">DEL</button>
+    </td>
+    </tr>`
+});
+
+async function load(){
+  const data = await authFetch(API+"incidents").then(r=>r.json());
+  window._table.load(data);
+
+  const statusCount = {Open:0,"In Progress":0,Resolved:0};
+  data.forEach(i=>{ if(statusCount[i.status]!==undefined) statusCount[i.status]++; });
+  if(incChart) incChart.destroy();
+  incChart = new Chart(document.getElementById("incidentChart"),{
+    type:"bar",
+    data:{
+      labels:Object.keys(statusCount),
+      datasets:[{data:Object.values(statusCount),
+        backgroundColor:["rgba(255,62,108,0.6)","rgba(255,140,0,0.6)","rgba(0,255,136,0.6)"],
+        borderColor:["#ff3e6c","#ff8c00","#00ff88"],
+        borderWidth:1, borderRadius:4,
+        barPercentage:0.5, categoryPercentage:0.5, maxBarThickness:60}]
+    },
+    options:{plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:"var(--subtext)",font:{size:10}},grid:{display:false}},
+        y:{ticks:{color:"var(--subtext)",font:{size:10}},grid:{color:"rgba(26,58,92,0.4)"}}
+      },animation:{duration:600}}
+  });
+}
+
+async function openModal(editData=null){
+  const[th,sy,an]=await Promise.all([
+    authFetch(API+"threats").then(r=>r.json()),
+    authFetch(API+"systems").then(r=>r.json()),
+    authFetch(API+"analysts").then(r=>r.json())
+  ]);
+  document.getElementById("f1").innerHTML=th.map(t=>`<option value="${t.threat_id}">${t.threat_name}</option>`).join("");
+  document.getElementById("f2").innerHTML=sy.map(s=>`<option value="${s.system_id}">${s.system_name}</option>`).join("");
+  document.getElementById("f3").innerHTML=an.map(a=>`<option value="${a.analyst_id}">${a.name}</option>`).join("");
+  if(editData){
+    document.getElementById("modalTitle").textContent="EDIT INCIDENT";
+    document.getElementById("editId").value=editData.incident_id;
+    document.getElementById("f1").value=editData.threat_id;
+    document.getElementById("f2").value=editData.system_id;
+    document.getElementById("f3").value=editData.analyst_id;
+    document.getElementById("f4").value=editData.status;
+  } else {
+    document.getElementById("modalTitle").textContent="LOG INCIDENT";
+    document.getElementById("editId").value="";
+  }
+  document.getElementById("modal").classList.add("active");
+}
+
+async function editModal(id){
+  const data = window._table.allData.find(i=>i.incident_id===id);
+  if(data) openModal(data);
+}
+
+async function save(){
+  const editId = document.getElementById("editId").value;
+  const body = {
+    threat_id:  document.getElementById("f1").value,
+    system_id:  document.getElementById("f2").value,
+    analyst_id: document.getElementById("f3").value,
+    status:     document.getElementById("f4").value
+  };
+  if(editId){
+    await authFetch(API+"incidents/"+editId,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    showToast("Incident updated");
+  } else {
+    await authFetch(API+"incidents",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    showToast("Incident logged");
+  }
+  closeModal(); load();
+}
+
+async function resolve(id){
+  await authFetch(API+"incidents/"+id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:"Resolved"})});
+  load(); showToast("Marked as Resolved");
+}
+
+function del(id){
+  showConfirm("Delete this incident? This action cannot be undone.", async()=>{
+    await authFetch(API+"incidents/"+id,{method:"DELETE"});
+    load(); showToast("Incident deleted","error");
+  });
+}
+
+function closeModal(){ document.getElementById("modal").classList.remove("active"); }
+load();
+</script>
+
+</body></html>

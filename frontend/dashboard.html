@@ -1,0 +1,286 @@
+<!DOCTYPE html><html lang="en">
+<head><meta charset="UTF-8"><title>CyberSec | Dashboard</title>
+<link rel="stylesheet" href="css/cyber.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+/* layout handled by cyber.css */
+/* sidebar handled by cyber.css */
+/* main handled by cyber.css */
+.ticker-wrap{background:#060d1a;border-bottom:1px solid #1a3a5c;padding:6px 0;overflow:hidden;}
+.ticker{display:flex;animation:ticker 40s linear infinite;white-space:nowrap;}
+.ticker-item{padding:0 32px;font-size:11px;letter-spacing:1px;}
+.ticker-item.red{color:#ff3e6c;}
+.ticker-item.yellow{color:#ffd700;}
+.ticker-item.cyan{color:#00d4ff;}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.top-bar{background:#060d1a;border-bottom:1px solid #1a3a5c;padding:8px 24px;
+display:flex;align-items:center;justify-content:space-between;}
+.threat-high{background:rgba(255,62,108,0.15);border:1px solid #ff3e6c;
+color:#ff3e6c;padding:4px 14px;border-radius:4px;font-size:11px;
+letter-spacing:2px;display:flex;align-items:center;gap:6px;}
+.blink{animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.clock-time{color:#00d4ff;font-size:20px;letter-spacing:3px;font-weight:bold;text-align:center;}
+.clock-date{color:#8899aa;font-size:10px;letter-spacing:1px;text-align:center;}
+.clock-tz{color:#00ff88;font-size:9px;text-align:center;}
+.trend{position:absolute;bottom:8px;right:8px;font-size:10px;}
+.trend-up{color:#00ff88;}
+.trend-down{color:#ff3e6c;}
+.charts-row{display:grid;grid-template-columns:1fr 280px;gap:16px;margin-bottom:16px;}
+.bottom-row{display:grid;grid-template-columns:1fr 280px;gap:16px;}
+.chart-card{background:#0d1b2e;border:1px solid #1a3a5c;border-radius:8px;padding:16px;}
+.chart-title{color:#00d4ff;font-size:10px;letter-spacing:2px;margin-bottom:12px;
+display:flex;justify-content:space-between;align-items:center;}
+.live-badge{background:rgba(0,255,136,0.1);border:1px solid #00ff88;
+color:#00ff88;font-size:9px;padding:2px 8px;border-radius:10px;
+animation:blink 2s infinite;}
+.legend{display:flex;flex-direction:column;gap:5px;margin-top:8px;}
+.legend-item{display:flex;align-items:center;justify-content:space-between;font-size:11px;}
+.legend-dot{width:8px;height:8px;border-radius:50%;margin-right:6px;flex-shrink:0;}
+.legend-left{display:flex;align-items:center;color:#8899aa;}
+.legend-count{color:#e0e6f0;font-weight:bold;}
+.sev-item{display:flex;align-items:center;margin-bottom:7px;}
+.sev-label{font-size:10px;color:#8899aa;width:50px;}
+.sev-bar-wrap{flex:1;background:#1a3a5c;border-radius:3px;height:4px;margin:0 8px;}
+.sev-bar{height:4px;border-radius:3px;}
+.sev-count{font-size:10px;color:#e0e6f0;width:14px;text-align:right;}
+.badge-count{background:#ff3e6c;color:white;font-size:9px;
+padding:1px 5px;border-radius:10px;margin-left:auto;}
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+<div class="sidebar-logo">CYBER<span>SEC</span></div>
+<div style="font-size:9px;color:#8899aa;padding:2px 20px 8px;letter-spacing:1px;">SOC Command Center</div>
+<div style="padding:6px 20px;display:flex;align-items:center;gap:6px;font-size:10px;color:#00ff88;border-bottom:1px solid #1a3a5c;">
+<span style="width:6px;height:6px;border-radius:50%;background:#00ff88;display:inline-block;animation:pulse 2s infinite;"></span>
+System Active
+<span style="margin-left:auto;font-size:9px;color:#8899aa;" id="uptime">00:00:00</span>
+</div>
+<div style="font-size:9px;color:#8899aa;letter-spacing:2px;padding:10px 20px 4px;">NAVIGATION</div>
+<a href="dashboard.html" class="nav-item active"><span class="nav-icon">&#9889;</span> Dashboard</a>
+<a href="threats.html" class="nav-item"><span class="nav-icon">&#9760;</span> Threats</a>
+<a href="incidents.html" class="nav-item"><span class="nav-icon">&#9888;</span> Incidents <span class="badge-count" id="inc-badge">0</span></a>
+<a href="vulnerabilities.html" class="nav-item"><span class="nav-icon">&#9673;</span> Vulnerabilities</a>
+<a href="patches.html" class="nav-item"><span class="nav-icon">&#10004;</span> Patches</a>
+<a href="auditlogs.html" class="nav-item"><span class="nav-icon">&#9998;</span> Audit Logs</a>
+<a href="systems.html" class="nav-item"><span class="nav-icon">&#128187;</span> Systems</a>
+<a href="analyst.html" class="nav-item"><span class="nav-icon">&#128100;</span> Analysts</a>
+<a href="users.html" class="nav-item"><span class="nav-icon">&#128272;</span> Users</a>
+<div style="margin-top:auto;">
+<div style="padding:10px 20px;border-top:1px solid #1a3a5c;">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+<div style="width:32px;height:32px;border-radius:50%;background:rgba(0,212,255,0.15);border:1px solid #00d4ff;display:flex;align-items:center;justify-content:center;color:#00d4ff;font-size:11px;font-weight:bold;flex-shrink:0;" id="uavatar">AD</div>
+<div>
+<div style="color:#e0e6f0;font-size:11px;" id="uname">admin</div>
+<div style="color:#8899aa;font-size:9px;" id="roleBadge">Administrator</div>
+</div>
+</div>
+<button onclick="logout()" style="width:100%;padding:9px;background:rgba(255,62,108,0.1);border:1px solid #ff3e6c;color:#ff3e6c;cursor:pointer;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;border-radius:4px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.background='#ff3e6c';this.style.color='#0a0e1a';" onmouseout="this.style.background='rgba(255,62,108,0.1)';this.style.color='#ff3e6c';">
+&#9211; LOGOUT
+</button>
+</div>
+</div>
+</nav>
+
+<div class="main">
+<div class="ticker-wrap">
+<div class="ticker">
+<span class="ticker-item red">🔴 CRITICAL: SQL INJECTION on Web Server Alpha (192.168.1.10)</span>
+<span class="ticker-item red">🔴 CRITICAL: Ransomware X — Database Server encrypted</span>
+<span class="ticker-item yellow">⚠ HIGH: Phishing Email targeting analyst accounts</span>
+<span class="ticker-item cyan">● SSH Brute Force on Dev Workstation (192.168.1.30)</span>
+<span class="ticker-item yellow">⚠ HIGH: Weak RDP password policy on Database Server</span>
+<span class="ticker-item red">🔴 CRITICAL: CVE-2023-4863 unpatched on Dev Workstation</span>
+<span class="ticker-item cyan">● Patch applied: OpenSSL 3.0 Upgrade on Web Server Alpha</span>
+<span class="ticker-item red">🔴 CRITICAL: SQL INJECTION on Web Server Alpha (192.168.1.10)</span>
+<span class="ticker-item red">🔴 CRITICAL: Ransomware X — Database Server encrypted</span>
+<span class="ticker-item yellow">⚠ HIGH: Phishing Email targeting analyst accounts</span>
+<span class="ticker-item cyan">● SSH Brute Force on Dev Workstation (192.168.1.30)</span>
+<span class="ticker-item yellow">⚠ HIGH: Weak RDP password policy on Database Server</span>
+<span class="ticker-item red">🔴 CRITICAL: CVE-2023-4863 unpatched on Dev Workstation</span>
+<span class="ticker-item cyan">● Patch applied: OpenSSL 3.0 Upgrade on Web Server Alpha</span>
+</div>
+</div>
+
+<div class="top-bar">
+<div style="display:flex;align-items:center;gap:12px;">
+<div class="threat-high"><span class="blink">●</span> THREAT LEVEL: HIGH</div>
+<div class="global-search" style="margin-left:12px">
+  <input type="text" id="globalSearch" placeholder="Search all data..." oninput="globalSearch(this.value)"/>
+</div>
+<div style="font-size:10px;color:#8899aa;">
+Auto-refresh in <span id="countdown">30</span>s
+</div>
+</div>
+<div>
+<div class="clock-time" id="clock-time">00:00:00</div>
+<div class="clock-date" id="clock-date"></div>
+<div class="clock-tz">PKT — UTC+5</div>
+</div>
+<div style="font-size:10px;color:#8899aa;text-align:right;">
+UET PESHAWAR<br>
+<span style="color:#00d4ff;">CYBERSEC SOC</span>
+</div>
+</div>
+
+<div style="padding:16px;">
+<div class="stats-grid" style="margin-bottom:16px;">
+<div class="stat-card red">
+<div class="stat-icon">!</div>
+<div class="stat-value" id="s1">--</div>
+<div class="stat-label">OPEN INCIDENTS</div>
+<div class="trend trend-up">▲ ACTIVE</div>
+</div>
+<div class="stat-card">
+<div class="stat-icon">☠</div>
+<div class="stat-value" id="s2">--</div>
+<div class="stat-label">CRITICAL THREATS</div>
+<div class="trend trend-down">● MONITOR</div>
+</div>
+<div class="stat-card green">
+<div class="stat-icon">✓</div>
+<div class="stat-value" id="s3">--</div>
+<div class="stat-label">RESOLVED</div>
+<div class="trend trend-up">▲ GOOD</div>
+</div>
+<div class="stat-card purple">
+<div class="stat-icon">V</div>
+<div class="stat-value" id="s4">--</div>
+<div class="stat-label">VULNERABILITIES</div>
+<div class="trend trend-down">▼ PATCH NOW</div>
+</div>
+<div class="stat-card">
+<div class="stat-icon">P</div>
+<div class="stat-value" id="s5">--</div>
+<div class="stat-label">PATCHES APPLIED</div>
+<div class="trend trend-up">▲ SECURE</div>
+</div>
+</div>
+
+<div id="globalResults" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+  <div style="color:var(--cyan);font-size:11px;letter-spacing:2px;margin-bottom:12px;display:flex;justify-content:space-between">
+    SEARCH RESULTS <button onclick="clearSearch()" class="btn btn-sm">✕ CLEAR</button>
+  </div>
+  <div id="globalResultsBody"></div>
+</div>
+
+<div class="charts-row">
+<div class="chart-card">
+<div class="chart-title">WEEKLY THREAT ACTIVITY <span class="live-badge">● LIVE</span></div>
+<canvas id="lineChart" height="110"></canvas>
+</div>
+<div class="chart-card">
+<div class="chart-title">THREAT DISTRIBUTION</div>
+<canvas id="donutChart" height="140"></canvas>
+<div class="legend" id="donutLegend"></div>
+</div>
+</div>
+
+<div class="bottom-row">
+<div class="chart-card">
+<div class="chart-title">RECENT INCIDENTS <span style="font-size:9px;color:#8899aa;" id="last-updated"></span></div>
+<table class="cyber-table">
+<thead><tr><th>ID</th><th>THREAT</th><th>SYSTEM</th><th>STATUS</th><th>DATE</th></tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+<div class="chart-card">
+<div class="chart-title">SEVERITY BREAKDOWN</div>
+<canvas id="severityDonut" height="130"></canvas>
+<div style="margin-top:10px;" id="severityBars"></div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="js/app.js"></script>
+<script>
+if(!localStorage.getItem("cy_user")){window.location.href="index.html";}
+const user=JSON.parse(localStorage.getItem("cy_user")||"{}");
+if(user.username){
+  document.getElementById("uname").textContent=user.username;
+  document.getElementById("uavatar").textContent=user.username.substring(0,2).toUpperCase();
+}
+function updateClock(){
+  const now=new Date();
+  document.getElementById("clock-time").textContent=now.toLocaleTimeString("en-US",{hour12:false});
+  document.getElementById("clock-date").textContent=now.toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+}
+setInterval(updateClock,1000); updateClock();
+let uptimeSec=0;
+setInterval(()=>{
+  uptimeSec++;
+  const h=Math.floor(uptimeSec/3600).toString().padStart(2,"0");
+  const m=Math.floor((uptimeSec%3600)/60).toString().padStart(2,"0");
+  const s=(uptimeSec%60).toString().padStart(2,"0");
+  document.getElementById("uptime").textContent=h+":"+m+":"+s;
+},1000);
+let cdVal=30;
+setInterval(()=>{ cdVal--; document.getElementById("countdown").textContent=cdVal; if(cdVal<=0){cdVal=30;load();} },1000);
+function animateCounter(id,target){
+  let cur=0; const step=Math.ceil(target/20)||1;
+  const iv=setInterval(()=>{ cur+=step; if(cur>=target){cur=target;clearInterval(iv);} document.getElementById(id).textContent=cur; },50);
+}
+const colors=["#ff3e6c","#00d4ff","#00ff88","#ffd700","#7b5ea7","#ff8c00"];
+let lc=null,dc=null,sc=null;
+async function load(){
+  try{
+    document.getElementById("last-updated").textContent="Updated: "+new Date().toLocaleTimeString();
+    const d=await authFetch("http://localhost:3000/api/dashboard").then(r=>r.json());
+    animateCounter("s1",d.open_incidents||0); animateCounter("s2",d.critical_threats||0);
+    animateCounter("s3",d.resolved||0); animateCounter("s4",d.total_vulns||0); animateCounter("s5",d.total_patches||0);
+    document.getElementById("inc-badge").textContent=d.open_incidents||0;
+    document.getElementById("tbody").innerHTML=(d.recent||[]).map(i=>`
+    <tr>
+    <td style="color:#8899aa;font-size:11px;">#00${i.incident_id}</td>
+    <td>${i.threat_name||"?"}</td>
+    <td style="color:#8899aa;">${i.system_name||"?"}</td>
+    <td><span class="badge badge-${(i.status||"open").toLowerCase().replace(/ /g,"")}">${i.status}</span></td>
+    <td style="color:#8899aa;font-size:11px;">${(i.incident_date||"").substring(0,10)}</td>
+    </tr>`).join("");
+    const threats=await authFetch("http://localhost:3000/api/threats").then(r=>r.json());
+    const types={};
+    threats.forEach(t=>{types[t.threat_type]=(types[t.threat_type]||0)+1;});
+    const tLabels=Object.keys(types); const tData=Object.values(types);
+    if(dc)dc.destroy();
+    dc=new Chart(document.getElementById("donutChart"),{type:"doughnut",data:{labels:tLabels,datasets:[{data:tData,backgroundColor:colors,borderWidth:0}]},options:{plugins:{legend:{display:false}},cutout:"72%",animation:{animateRotate:true,duration:1000}}});
+    document.getElementById("donutLegend").innerHTML=tLabels.map((l,i)=>`<div class="legend-item"><div class="legend-left"><div class="legend-dot" style="background:${colors[i]}"></div>${l}</div><div class="legend-count">${tData[i]}</div></div>`).join("");
+    const sev={Critical:0,High:0,Medium:0,Low:0};
+    threats.forEach(t=>{if(sev[t.severity_level]!==undefined)sev[t.severity_level]++;});
+    const sc2={Critical:"#ff3e6c",High:"#ff8c00",Medium:"#00d4ff",Low:"#00ff88"};
+    const maxS=Math.max(...Object.values(sev))||1;
+    if(sc)sc.destroy();
+    sc=new Chart(document.getElementById("severityDonut"),{type:"doughnut",data:{labels:Object.keys(sev),datasets:[{data:Object.values(sev),backgroundColor:Object.values(sc2),borderWidth:0}]},options:{plugins:{legend:{display:false}},cutout:"70%",animation:{animateRotate:true,duration:1000}}});
+    document.getElementById("severityBars").innerHTML=Object.entries(sev).map(([k,v])=>`<div class="sev-item"><div class="sev-label">${k}</div><div class="sev-bar-wrap"><div class="sev-bar" style="width:${(v/maxS)*100}%;background:${sc2[k]}"></div></div><div class="sev-count">${v}</div></div>`).join("");
+    if(lc)lc.destroy();
+    lc=new Chart(document.getElementById("lineChart"),{type:"line",data:{labels:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],datasets:[{label:"Threats",data:[2,3,5,4,6,5,threats.length],borderColor:"#00d4ff",backgroundColor:"rgba(0,212,255,0.08)",tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:"#00d4ff"},{label:"Incidents",data:[1,2,2,3,3,4,d.open_incidents||0],borderColor:"#ff3e6c",backgroundColor:"rgba(255,62,108,0.08)",tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:"#ff3e6c"}]},options:{animation:{duration:1000},plugins:{legend:{labels:{color:"#8899aa",font:{size:10},boxWidth:10}}},scales:{x:{ticks:{color:"#8899aa",font:{size:10}},grid:{color:"rgba(26,58,92,0.4)"}},y:{ticks:{color:"#8899aa",font:{size:10}},grid:{color:"rgba(26,58,92,0.4)"}}}}});
+  }catch(err){console.error("Load error:",err);}
+}
+load();
+async function globalSearch(q){
+  q=q.trim().toLowerCase();
+  const box=document.getElementById("globalResults"); const body=document.getElementById("globalResultsBody");
+  if(!q){box.style.display="none";return;} box.style.display="block";
+  body.innerHTML='<div style="color:var(--subtext);font-size:12px">Searching...</div>';
+  try{
+    const[threats,incidents,systems,analysts]=await Promise.all([authFetch(API+"threats").then(r=>r.json()),authFetch(API+"incidents").then(r=>r.json()),authFetch(API+"systems").then(r=>r.json()),authFetch(API+"analysts").then(r=>r.json())]);
+    const match=arr=>arr.filter(x=>Object.values(x).some(v=>String(v||"").toLowerCase().includes(q)));
+    const tR=match(threats),iR=match(incidents),sR=match(systems),aR=match(analysts);
+    const total=tR.length+iR.length+sR.length+aR.length;
+    if(total===0){body.innerHTML='<div style="color:var(--subtext);font-size:12px;text-align:center;padding:20px">No results found for "'+q+'"</div>';return;}
+    let html2='';
+    if(tR.length)html2+=`<div style="font-size:10px;color:var(--subtext);letter-spacing:1px;margin:8px 0 4px">THREATS (${tR.length})</div>`+tR.slice(0,3).map(t=>`<div style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;cursor:pointer" onclick="location.href='threats.html'"><strong>${t.threat_name}</strong> <span class="badge badge-${t.severity_level.toLowerCase()}">${t.severity_level}</span> — ${t.threat_type}</div>`).join('');
+    if(iR.length)html2+=`<div style="font-size:10px;color:var(--subtext);letter-spacing:1px;margin:8px 0 4px">INCIDENTS (${iR.length})</div>`+iR.slice(0,3).map(i=>`<div style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;cursor:pointer" onclick="location.href='incidents.html'"><strong>#${i.incident_id}</strong> — ${i.threat_name||'?'} on ${i.system_name||'?'} <span class="badge badge-${(i.status||'').toLowerCase().replace(/ /g,'')}">${i.status}</span></div>`).join('');
+    if(sR.length)html2+=`<div style="font-size:10px;color:var(--subtext);letter-spacing:1px;margin:8px 0 4px">SYSTEMS (${sR.length})</div>`+sR.slice(0,3).map(s=>`<div style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;cursor:pointer" onclick="location.href='systems.html'"><strong>${s.system_name}</strong> — ${s.os_type} (${s.ip_address})</div>`).join('');
+    if(aR.length)html2+=`<div style="font-size:10px;color:var(--subtext);letter-spacing:1px;margin:8px 0 4px">ANALYSTS (${aR.length})</div>`+aR.slice(0,3).map(a=>`<div style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;cursor:pointer" onclick="location.href='analyst.html'"><strong>${a.name}</strong> — ${a.specialization}</div>`).join('');
+    if(total>9)html2+=`<div style="font-size:11px;color:var(--subtext);text-align:center;padding:8px">...and ${total-9} more results.</div>`;
+    body.innerHTML=html2;
+  }catch(e){body.innerHTML='<div style="color:var(--red);font-size:12px">Search error — is the server running?</div>';}
+}
+function clearSearch(){document.getElementById("globalSearch").value="";document.getElementById("globalResults").style.display="none";}
+</script>
+
+</body></html>

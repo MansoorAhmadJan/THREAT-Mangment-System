@@ -1,0 +1,197 @@
+<!DOCTYPE html><html lang="en">
+<head><meta charset="UTF-8"><title>CyberSec | Patches</title>
+<link rel="stylesheet" href="css/cyber.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+<nav class="sidebar">
+<div class="sidebar-logo">CYBER<span>SEC</span></div>
+<div style="font-size:9px;color:#8899aa;padding:2px 20px 8px;letter-spacing:1px;">SOC Command Center</div>
+<div style="padding:6px 20px;display:flex;align-items:center;gap:6px;font-size:10px;color:#00ff88;border-bottom:1px solid #1a3a5c;">
+<span style="width:6px;height:6px;border-radius:50%;background:#00ff88;display:inline-block;animation:pulse 2s infinite;"></span>
+System Active
+</div>
+<div style="font-size:9px;color:#8899aa;letter-spacing:2px;padding:10px 20px 4px;">NAVIGATION</div>
+<a href="dashboard.html" class="nav-item"><span class="nav-icon">&#9889;</span> Dashboard</a>
+<a href="threats.html" class="nav-item"><span class="nav-icon">&#9760;</span> Threats</a>
+<a href="incidents.html" class="nav-item"><span class="nav-icon">&#9888;</span> Incidents</a>
+<a href="vulnerabilities.html" class="nav-item"><span class="nav-icon">&#9673;</span> Vulnerabilities</a>
+<a href="patches.html" class="nav-item active"><span class="nav-icon">&#10004;</span> Patches</a>
+<a href="auditlogs.html" class="nav-item"><span class="nav-icon">&#9998;</span> Audit Logs</a>
+<a href="systems.html" class="nav-item"><span class="nav-icon">&#128187;</span> Systems</a>
+<a href="analyst.html" class="nav-item"><span class="nav-icon">&#128100;</span> Analysts</a>
+<a href="users.html" class="nav-item"><span class="nav-icon">&#128272;</span> Users</a>
+<div style="margin-top:auto;">
+<div style="padding:10px 20px;border-top:1px solid #1a3a5c;">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;" id="sidebarUser">
+<div style="width:32px;height:32px;border-radius:50%;background:rgba(0,212,255,0.15);border:1px solid #00d4ff;display:flex;align-items:center;justify-content:center;color:#00d4ff;font-size:11px;font-weight:bold;flex-shrink:0;" id="uavatar">AD</div>
+<div>
+<div style="color:#e0e6f0;font-size:11px;" id="uname">admin</div>
+<div style="color:#8899aa;font-size:9px;" id="roleBadge">Administrator</div>
+</div>
+</div>
+<button onclick="logout()" style="width:100%;padding:9px;background:rgba(255,62,108,0.1);border:1px solid #ff3e6c;color:#ff3e6c;cursor:pointer;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;border-radius:4px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.background='#ff3e6c';this.style.color='#0a0e1a';" onmouseout="this.style.background='rgba(255,62,108,0.1)';this.style.color='#ff3e6c';">
+&#9211; LOGOUT
+</button>
+</div>
+</div>
+</nav>
+
+<div class="main">
+<div class="page-header">
+  <div class="page-title">PATCHES <span>APPLIED</span></div>
+  <div class="page-header-right">
+    <button class="btn-export" onclick="window._table?.exportCSV()">⬇ EXPORT CSV</button>
+    <button class="btn-export" style="border-color:var(--red);color:var(--red)" onclick="exportPDF()">⬇ PDF</button>
+    <button class="btn" onclick="openModal()">+ RECORD PATCH</button>
+  </div>
+</div>
+
+<div class="mini-chart-card">
+  <div class="mini-chart-title">PATCHES PER SYSTEM (TOP 6)</div>
+  <canvas id="patchChart" height="60"></canvas>
+</div>
+
+<div class="table-toolbar">
+  <div class="search-box"><input id="searchBox" type="text" placeholder="Search patches..."/></div>
+  <div class="date-range">
+    <span class="date-range-label">FROM</span><input type="date" id="dateFrom"/>
+    <span class="date-range-label">TO</span><input type="date" id="dateTo"/>
+  </div>
+  <span id="recordCount" class="record-count"></span>
+</div>
+
+<div class="table-wrap">
+<table class="cyber-table">
+<thead><tr>
+  <th data-col="patch_id" onclick="window._table?.sortBy('patch_id')"># <span class="sort-icon">⇅</span></th>
+  <th data-col="system_name" onclick="window._table?.sortBy('system_name')">SYSTEM <span class="sort-icon">⇅</span></th>
+  <th data-col="patch_name" onclick="window._table?.sortBy('patch_name')">PATCH NAME <span class="sort-icon">⇅</span></th>
+  <th data-col="applied_date" onclick="window._table?.sortBy('applied_date')">DATE <span class="sort-icon">⇅</span></th>
+  <th data-col="analyst_name" onclick="window._table?.sortBy('analyst_name')">BY ANALYST <span class="sort-icon">⇅</span></th>
+  <th>ACTION</th>
+</tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+<div id="pagination" class="pagination"></div>
+</div>
+</div>
+
+<div class="modal-overlay" id="modal"><div class="modal">
+<div class="modal-title" id="modalTitle">RECORD PATCH</div>
+<input type="hidden" id="editId"/>
+<div class="form-group"><label>SYSTEM</label><select id="f1"></select></div>
+<div class="form-group"><label>PATCH NAME</label><input type="text" id="f2" placeholder="e.g. KB5034441"/></div>
+<div class="form-group"><label>DATE APPLIED</label><input type="date" id="f3"/></div>
+<div class="form-group"><label>APPLIED BY</label><select id="f4"></select></div>
+<div style="display:flex;gap:10px;justify-content:flex-end">
+<button class="btn btn-red" onclick="closeModal()">CANCEL</button>
+<button class="btn btn-green" onclick="save()">SAVE</button>
+</div>
+</div></div>
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <div class="confirm-title" id="confirmTitle">CONFIRM DELETE</div>
+    <div class="confirm-msg" id="confirmMsg">Are you sure?</div>
+    <div class="confirm-btns">
+      <button class="btn btn-red" onclick="confirmNo()">CANCEL</button>
+      <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="confirmYes()">DELETE</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  if(!localStorage.getItem("cy_user")){window.location.href="index.html";return;}
+  const u=JSON.parse(localStorage.getItem("cy_user")||"{}");
+  const av=document.getElementById("uavatar");
+  const un=document.getElementById("uname");
+  if(av && u.username) av.textContent=u.username.substring(0,2).toUpperCase();
+  if(un && u.username) un.textContent=u.username;
+  const rb=document.getElementById("roleBadge");
+  if(rb && u.role) rb.textContent=u.role.charAt(0).toUpperCase()+u.role.slice(1);
+})();
+</script>
+<script src="js/app.js"></script>
+<script>
+let pChart=null;
+window._table = new CyberTable({
+  tbodyId:"tbody", searchId:"searchBox",
+  dateRangeIds:{from:"dateFrom",to:"dateTo",col:"applied_date"},
+  countId:"recordCount", paginationId:"pagination",
+  columns:[{key:"patch_id",label:"ID"},{key:"system_name",label:"System"},{key:"patch_name",label:"Patch"},{key:"applied_date",label:"Date"},{key:"analyst_name",label:"Analyst"}],
+  renderRow: p => `
+    <tr>
+    <td>${p.patch_id}</td>
+    <td>${p.system_name||"?"}</td>
+    <td><strong>${p.patch_name}</strong></td>
+    <td style="color:var(--subtext)">${p.applied_date||""}</td>
+    <td>${p.analyst_name||"?"}</td>
+    <td style="display:flex;gap:4px">
+      <button class="btn btn-sm" onclick="editModal(${p.patch_id})">EDIT</button>
+      <button class="btn btn-red btn-sm" onclick="del(${p.patch_id})">DEL</button>
+    </td>
+    </tr>`
+});
+async function load(){
+  const data=await authFetch(API+"patches").then(r=>r.json());
+  window._table.load(data);
+  const sys={};
+  data.forEach(p=>{ sys[p.system_name||"Unknown"]=(sys[p.system_name||"Unknown"]||0)+1; });
+  const sorted=Object.entries(sys).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  if(pChart)pChart.destroy();
+  pChart=new Chart(document.getElementById("patchChart"),{
+    type:"bar",
+    data:{labels:sorted.map(x=>x[0]),datasets:[{
+      data:sorted.map(x=>x[1]),
+      backgroundColor:"rgba(0,255,136,0.5)",
+      borderColor:"#00ff88",
+      borderWidth:1,
+      borderRadius:4,
+      barPercentage:0.5,
+      categoryPercentage:0.5,
+      maxBarThickness:60
+    }]},
+    options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:"var(--subtext)",font:{size:10}},grid:{display:false}},y:{ticks:{color:"var(--subtext)",font:{size:10}},grid:{color:"rgba(26,58,92,0.4)"}}},animation:{duration:600}}
+  });
+}
+async function openModal(editData=null){
+  const[sy,an]=await Promise.all([authFetch(API+"systems").then(r=>r.json()),authFetch(API+"analysts").then(r=>r.json())]);
+  document.getElementById("f1").innerHTML=sy.map(s=>`<option value="${s.system_id}">${s.system_name}</option>`).join("");
+  document.getElementById("f4").innerHTML=an.map(a=>`<option value="${a.analyst_id}">${a.name}</option>`).join("");
+  if(editData){
+    document.getElementById("modalTitle").textContent="EDIT PATCH";
+    document.getElementById("editId").value=editData.patch_id;
+    document.getElementById("f1").value=editData.system_id;
+    document.getElementById("f2").value=editData.patch_name;
+    document.getElementById("f3").value=editData.applied_date?.substring(0,10)||"";
+    document.getElementById("f4").value=editData.applied_by;
+  } else {
+    document.getElementById("modalTitle").textContent="RECORD PATCH";
+    document.getElementById("editId").value="";
+    document.getElementById("f2").value=""; document.getElementById("f3").value="";
+  }
+  document.getElementById("modal").classList.add("active");
+}
+function editModal(id){ const p=window._table.allData.find(x=>x.patch_id===id); if(p)openModal(p); }
+async function save(){
+  const editId=document.getElementById("editId").value;
+  const body={system_id:document.getElementById("f1").value,patch_name:document.getElementById("f2").value,applied_date:document.getElementById("f3").value,applied_by:document.getElementById("f4").value};
+  if(editId){
+    await authFetch(API+"patches/"+editId,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    showToast("Patch updated");
+  } else {
+    await authFetch(API+"patches",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    showToast("Patch recorded");
+  }
+  closeModal();load();
+}
+function del(id){ showConfirm("Delete this patch record?",async()=>{ await authFetch(API+"patches/"+id,{method:"DELETE"}); load();showToast("Deleted","error"); }); }
+function closeModal(){document.getElementById("modal").classList.remove("active");}
+load();
+</script>
+
+</body></html>

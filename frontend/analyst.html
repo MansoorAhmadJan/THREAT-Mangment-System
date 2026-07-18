@@ -1,0 +1,179 @@
+<!DOCTYPE html><html lang="en">
+<head><meta charset="UTF-8"><title>CyberSec | Analysts</title>
+<link rel="stylesheet" href="css/cyber.css">
+</head>
+<body>
+<nav class="sidebar">
+<div class="sidebar-logo">CYBER<span>SEC</span></div>
+<div style="font-size:9px;color:#8899aa;padding:2px 20px 8px;letter-spacing:1px;">SOC Command Center</div>
+<div style="padding:6px 20px;display:flex;align-items:center;gap:6px;font-size:10px;color:#00ff88;border-bottom:1px solid #1a3a5c;">
+<span style="width:6px;height:6px;border-radius:50%;background:#00ff88;display:inline-block;animation:pulse 2s infinite;"></span>
+System Active
+</div>
+<div style="font-size:9px;color:#8899aa;letter-spacing:2px;padding:10px 20px 4px;">NAVIGATION</div>
+<a href="dashboard.html" class="nav-item"><span class="nav-icon">&#9889;</span> Dashboard</a>
+<a href="threats.html" class="nav-item"><span class="nav-icon">&#9760;</span> Threats</a>
+<a href="incidents.html" class="nav-item"><span class="nav-icon">&#9888;</span> Incidents</a>
+<a href="vulnerabilities.html" class="nav-item"><span class="nav-icon">&#9673;</span> Vulnerabilities</a>
+<a href="patches.html" class="nav-item"><span class="nav-icon">&#10004;</span> Patches</a>
+<a href="auditlogs.html" class="nav-item"><span class="nav-icon">&#9998;</span> Audit Logs</a>
+<a href="systems.html" class="nav-item"><span class="nav-icon">&#128187;</span> Systems</a>
+<a href="analyst.html" class="nav-item active"><span class="nav-icon">&#128100;</span> Analysts</a>
+<a href="users.html" class="nav-item"><span class="nav-icon">&#128272;</span> Users</a>
+
+<div style="margin-top:auto;">
+<div style="padding:10px 20px;border-top:1px solid #1a3a5c;">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;" id="sidebarUser">
+<div style="width:32px;height:32px;border-radius:50%;background:rgba(0,212,255,0.15);border:1px solid #00d4ff;display:flex;align-items:center;justify-content:center;color:#00d4ff;font-size:11px;font-weight:bold;flex-shrink:0;" id="uavatar">AD</div>
+<div>
+<div style="color:#e0e6f0;font-size:11px;" id="uname">admin</div>
+<div style="color:#8899aa;font-size:9px;" id="roleBadge">Administrator</div>
+</div>
+</div>
+<button onclick="logout()" style="width:100%;padding:9px;background:rgba(255,62,108,0.1);border:1px solid #ff3e6c;color:#ff3e6c;cursor:pointer;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;border-radius:4px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.background='#ff3e6c';this.style.color='#0a0e1a';" onmouseout="this.style.background='rgba(255,62,108,0.1)';this.style.color='#ff3e6c';">
+&#9211; LOGOUT
+</button>
+</div>
+</div>
+</nav>
+
+<div class="main">
+<div class="page-header">
+  <div class="page-title">ANALYSTS</div>
+  <div class="page-header-right">
+    <button class="btn-export" onclick="window._table?.exportCSV()">⬇ EXPORT CSV</button>
+    <button class="btn-export" style="border-color:var(--red);color:var(--red)" onclick="exportPDF()">⬇ PDF</button>
+    <button class="btn" onclick="openModal()">+ ADD ANALYST</button>
+  </div>
+</div>
+
+<div class="table-toolbar">
+  <div class="search-box"><input id="searchBox" type="text" placeholder="Search analysts..."/></div>
+  <span id="recordCount" class="record-count"></span>
+</div>
+
+<div class="table-wrap">
+<table class="cyber-table">
+<thead><tr>
+  <th data-col="analyst_id" onclick="window._table?.sortBy('analyst_id')"># <span class="sort-icon">⇅</span></th>
+  <th data-col="name" onclick="window._table?.sortBy('name')">NAME <span class="sort-icon">⇅</span></th>
+  <th data-col="specialization" onclick="window._table?.sortBy('specialization')">SPECIALIZATION <span class="sort-icon">⇅</span></th>
+  <th>ACTION</th>
+</tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+<div id="pagination" class="pagination"></div>
+</div>
+</div>
+
+<div class="modal-overlay" id="modal"><div class="modal">
+<div class="modal-title" id="modalTitle">ADD ANALYST</div>
+<input type="hidden" id="editId"/>
+<div class="form-group"><label>FULL NAME</label><input type="text" id="f1" placeholder="e.g. John Smith"/></div>
+<div class="form-group"><label>SPECIALIZATION</label>
+<select id="f2">
+  <option>Malware Analysis</option>
+  <option>Network Security</option>
+  <option>Incident Response</option>
+  <option>Threat Intelligence</option>
+  <option>Penetration Testing</option>
+  <option>Forensics</option>
+  <option>General</option>
+</select></div>
+<div style="display:flex;gap:10px;justify-content:flex-end">
+<button class="btn btn-red" onclick="closeModal()">CANCEL</button>
+<button class="btn btn-green" onclick="save()">SAVE</button>
+</div>
+</div></div>
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <div class="confirm-title" id="confirmTitle">CONFIRM DELETE</div>
+    <div class="confirm-msg" id="confirmMsg">Are you sure?</div>
+    <div class="confirm-btns">
+      <button class="btn btn-red" onclick="confirmNo()">CANCEL</button>
+      <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="confirmYes()">DELETE</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  if(!localStorage.getItem("cy_user")){window.location.href="index.html";return;}
+  const u=JSON.parse(localStorage.getItem("cy_user")||"{}");
+  const av=document.getElementById("uavatar");
+  const un=document.getElementById("uname");
+  if(av && u.username) av.textContent=u.username.substring(0,2).toUpperCase();
+  if(un && u.username) un.textContent=u.username;
+  const rb=document.getElementById("roleBadge");
+  if(rb && u.role) rb.textContent=u.role.charAt(0).toUpperCase()+u.role.slice(1);
+})();
+</script>
+<script src="js/app.js"></script>
+<script>
+window._table = new CyberTable({
+  tbodyId:"tbody", searchId:"searchBox",
+  countId:"recordCount", paginationId:"pagination",
+  columns:[{key:"analyst_id",label:"ID"},{key:"name",label:"Name"},{key:"specialization",label:"Specialization"}],
+  renderRow: a => `
+    <tr>
+    <td>${a.analyst_id}</td>
+    <td>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(0,212,255,0.15);
+          border:1px solid var(--cyan);display:flex;align-items:center;justify-content:center;
+          font-size:10px;color:var(--cyan);font-weight:bold;flex-shrink:0">
+          ${a.name.substring(0,2).toUpperCase()}
+        </div>
+        <strong>${a.name}</strong>
+      </div>
+    </td>
+    <td style="color:var(--subtext)">${a.specialization||"?"}</td>
+    <td style="display:flex;gap:4px">
+      <button class="btn btn-sm" onclick="editModal(${a.analyst_id})">EDIT</button>
+      <button class="btn btn-red btn-sm" onclick="del(${a.analyst_id})">DEL</button>
+    </td>
+    </tr>`
+});
+
+async function load(){
+  const data=await authFetch(API+"analysts").then(r=>r.json());
+  window._table.load(data);
+}
+
+function openModal(editData=null){
+  if(editData){
+    document.getElementById("modalTitle").textContent="EDIT ANALYST";
+    document.getElementById("editId").value=editData.analyst_id;
+    document.getElementById("f1").value=editData.name;
+    document.getElementById("f2").value=editData.specialization||"General";
+  } else {
+    document.getElementById("modalTitle").textContent="ADD ANALYST";
+    document.getElementById("editId").value=""; document.getElementById("f1").value="";
+  }
+  document.getElementById("modal").classList.add("active");
+}
+
+function editModal(id){ openModal(window._table.allData.find(x=>x.analyst_id===id)); }
+
+async function save(){
+  const editId=document.getElementById("editId").value;
+  const body={name:document.getElementById("f1").value,specialization:document.getElementById("f2").value};
+  if(editId){
+    await authFetch(API+"analysts/"+editId,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    showToast("Analyst updated");
+  } else {
+    await authFetch(API+"analysts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    showToast("Analyst added");
+  }
+  closeModal();load();
+}
+
+function del(id){ showConfirm("Delete this analyst?",async()=>{ await authFetch(API+"analysts/"+id,{method:"DELETE"}); load();showToast("Analyst deleted","error"); }); }
+function closeModal(){document.getElementById("modal").classList.remove("active");}
+load();
+</script>
+
+</body></html>

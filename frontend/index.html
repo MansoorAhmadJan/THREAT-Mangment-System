@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CyberSec | Login</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0e1a;display:flex;align-items:center;
+justify-content:center;min-height:100vh;
+font-family:"Courier New",monospace;}
+.box{width:400px;background:#0d1b2e;border:1px solid #00d4ff;
+border-radius:10px;padding:40px;}
+.logo{text-align:center;color:#00d4ff;font-size:28px;
+font-weight:bold;letter-spacing:4px;margin-bottom:4px;}
+.sub{text-align:center;color:#8899aa;font-size:10px;
+letter-spacing:2px;margin-bottom:32px;}
+label{display:block;font-size:11px;color:#8899aa;
+letter-spacing:1px;margin-bottom:6px;}
+input{width:100%;background:#0a0e1a;border:1px solid #1a3a5c;
+color:#e0e6f0;padding:10px 12px;font-family:"Courier New",monospace;
+font-size:13px;border-radius:4px;outline:none;margin-bottom:16px;}
+input:focus{border-color:#00d4ff;}
+.lbtn{width:100%;padding:12px;background:#00d4ff;color:#0a0e1a;
+border:none;cursor:pointer;font-family:"Courier New",monospace;
+font-size:14px;letter-spacing:2px;border-radius:4px;font-weight:bold;}
+.lbtn:hover{opacity:.85;}
+#err{color:#ff3e6c;font-size:12px;text-align:center;margin-top:12px;}
+</style>
+</head>
+<body>
+<div class="box">
+<div class="logo">CYBERSEC</div>
+<div class="sub">THREAT MANAGEMENT SYSTEM</div>
+<label>USERNAME</label>
+<input type="text" id="username" placeholder="Enter username"/>
+<label>PASSWORD</label>
+<input type="password" id="password" placeholder="Enter password"/>
+<button class="lbtn" onclick="login()">LOGIN</button>
+<div id="err"></div>
+</div>
+<script>
+async function login(){
+  const username=document.getElementById("username").value.trim();
+  const password=document.getElementById("password").value.trim();
+  if(!username||!password){
+    document.getElementById("err").textContent="Please enter username and password";
+    return;
+  }
+  try{
+    const res=await fetch("http://localhost:3000/api/auth/login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username,password})
+    });
+    const data=await res.json();
+    if(data.success){
+      localStorage.setItem("cy_user",JSON.stringify(data));
+      window.location.href="dashboard.html";
+    } else {
+      document.getElementById("err").textContent="Error: "+data.error;
+    }
+  } catch(e){
+    document.getElementById("err").textContent="Cannot connect to server!";
+  }
+}
+document.addEventListener("keydown",e=>{if(e.key==="Enter")login();});
+</script>
+</body>
+</html>
