@@ -1,8 +1,10 @@
 const express = require("express");
 const router  = express.Router();
 const db      = require("../config/db");
+const requireRole = require("../middleware/requireRole");
 
-router.get("/", (req, res) => {
+// Audit trail is SOC-sensitive: Admin + Analyst can review it, Viewer cannot.
+router.get("/", requireRole("Admin", "Analyst"), (req, res) => {
   const sql = `
     SELECT al.*, u.username AS performed_by_username
     FROM AuditLogs al

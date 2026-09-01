@@ -2,6 +2,7 @@ const express = require("express");
 const router  = express.Router();
 const db      = require("../config/db");
 const { body, param, validationResult } = require("express-validator");
+const requireRole = require("../middleware/requireRole");
 
 router.get("/", (req, res) => {
   const sql = `
@@ -19,6 +20,7 @@ router.get("/", (req, res) => {
 });
 
 router.post("/",
+  requireRole("Admin", "Analyst"),
   body("threat_id").isInt().withMessage("threat_id must be a number"),
   body("system_id").isInt().withMessage("system_id must be a number"),
   body("analyst_id").isInt().withMessage("analyst_id must be a number"),
@@ -93,6 +95,7 @@ router.post("/",
 );
 
 router.put("/:id",
+  requireRole("Admin", "Analyst"),
   param("id").isInt().withMessage("Invalid incident id"),
   body("status").optional().isIn(["Open", "In Progress", "Resolved"]).withMessage("Invalid status"),
   body("threat_id").optional().isInt().withMessage("threat_id must be a number"),
@@ -136,6 +139,7 @@ router.put("/:id",
 );
 
 router.delete("/:id",
+  requireRole("Admin"),
   param("id").isInt().withMessage("Invalid incident id"),
   (req, res) => {
     const errors = validationResult(req);

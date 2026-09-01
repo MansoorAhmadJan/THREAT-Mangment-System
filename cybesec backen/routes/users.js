@@ -3,9 +3,10 @@ const router = express.Router();
 const bcrypt = require("bcrypt");
 const db = require("../config/db");
 const { body, param, validationResult } = require("express-validator");
+const requireRole = require("../middleware/requireRole");
 
-// GET all users
-router.get("/", (req, res) => {
+// GET all users — Admin only: this is an account roster (emails, roles), not operational data
+router.get("/", requireRole("Admin"), (req, res) => {
   db.query(
     "SELECT user_id, username, email, role, created_at FROM Users",
     (err, rows) => {
@@ -15,8 +16,9 @@ router.get("/", (req, res) => {
   );
 });
 
-// POST add new user
+// POST add new user — Admin only: creating accounts is privilege management
 router.post("/",
+  requireRole("Admin"),
   body("username").trim().notEmpty().withMessage("username is required"),
   body("email").optional({ checkFalsy: true }).isEmail().withMessage("email must be valid"),
   body("role").optional().isIn(["Admin", "Analyst", "Viewer"]).withMessage("Invalid role"),
@@ -32,13 +34,13 @@ router.post("/",
       const hashed = await bcrypt.hash(password, 10);
       db.query(
         "INSERT INTO Users (username, email, role, password) VALUES (?,?,?,?)",
-        [username, email, role || "viewer", hashed],
+        [username, email, role || "Viewer", hashed],
         (err, result) => {
           if (err) return res.status(500).json({ error: err.message });
 
           db.query(
             "INSERT INTO AuditLogs (action, table_name, record_id, description, performed_by) VALUES (?,?,?,?,?)",
-            ["INSERT", "Users", result.insertId, `User created: ${username} (${role || "viewer"})`, req.user.user_id],
+            ["INSERT", "Users", result.insertId, `User created: ${username} (${role || "Viewer"})`, req.user.user_id],
             (auditErr) => { if (auditErr) console.error("Audit log failed:", auditErr.message); }
           );
 
@@ -51,8 +53,9 @@ router.post("/",
   }
 );
 
-// PUT update user
+// PUT update user — Admin only: this route can change a user's role (privilege escalation surface)
 router.put("/:id",
+  requireRole("Admin"),
   param("id").isInt().withMessage("Invalid user id"),
   body("username").optional().trim().notEmpty().withMessage("username cannot be empty"),
   body("email").optional({ checkFalsy: true }).isEmail().withMessage("email must be valid"),
@@ -80,8 +83,14 @@ router.put("/:id",
   }
 );
 
-// PUT change password
+// PUT change password — Admin can reset anyone's password; a user can reset their own
 router.put("/:id/password",
+  (req, res, next) => {
+    if (req.user.role === "Admin" || String(req.user.user_id) === String(req.params.id)) {
+      return next();
+    }
+    return res.status(403).json({ error: "Forbidden — you can only change your own password" });
+  },
   param("id").isInt().withMessage("Invalid user id"),
   body("password").notEmpty().withMessage("Password is required")
     .isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
@@ -114,8 +123,9 @@ router.put("/:id/password",
   }
 );
 
-// DELETE user
+// DELETE user — Admin only
 router.delete("/:id",
+  requireRole("Admin"),
   param("id").isInt().withMessage("Invalid user id"),
   (req, res) => {
     const errors = validationResult(req);
