@@ -118,28 +118,39 @@ System Active
 <script src="js/app.js"></script>
 <script>
 let pChart=null;
+const patchHtmlEntities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function escapePatchText(value) {
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  return text.replace(/[&<>"']/g, character => patchHtmlEntities[character]);
+}
+
 window._table = new CyberTable({
   tbodyId:"tbody", searchId:"searchBox",
   dateRangeIds:{from:"dateFrom",to:"dateTo",col:"applied_date"},
   countId:"recordCount", paginationId:"pagination",
   columns:[{key:"patch_id",label:"ID"},{key:"system_name",label:"System"},{key:"patch_name",label:"Patch"},{key:"applied_date",label:"Date"},{key:"analyst_name",label:"Analyst"}],
-  renderRow: p => `
+  renderRow: p => {
+    const actionId = Number.isSafeInteger(p.patch_id) ? p.patch_id : null;
+    const disableAction = actionId === null ? " disabled" : "";
+
+    return `
     <tr>
-    <td>${p.patch_id}</td>
-    <td>${p.system_name||"?"}</td>
-    <td><strong>${p.patch_name}</strong></td>
-    <td style="color:var(--subtext)">${p.applied_date||""}</td>
-    <td>${p.analyst_name||"?"}</td>
+    <td>${escapePatchText(p.patch_id)}</td>
+    <td>${escapePatchText(p.system_name || "?")}</td>
+    <td><strong>${escapePatchText(p.patch_name)}</strong></td>
+    <td style="color:var(--subtext)">${escapePatchText(p.applied_date)}</td>
+    <td>${escapePatchText(p.analyst_name || "?")}</td>
     <td style="display:flex;gap:4px">
-      <button class="btn btn-sm" onclick="editModal(${p.patch_id})">EDIT</button>
-      <button class="btn btn-red btn-sm" onclick="del(${p.patch_id})">DEL</button>
+      <button class="btn btn-sm" onclick="editModal(${actionId})"${disableAction}>EDIT</button>
+      <button class="btn btn-red btn-sm" onclick="del(${actionId})"${disableAction}>DEL</button>
     </td>
-    </tr>`
+    </tr>`;
+  }
 });
 async function load(){
   const data=await authFetch(API+"patches").then(r=>r.json());
   window._table.load(data);
-  const sys={};
+  const sys=Object.create(null);
   data.forEach(p=>{ sys[p.system_name||"Unknown"]=(sys[p.system_name||"Unknown"]||0)+1; });
   const sorted=Object.entries(sys).sort((a,b)=>b[1]-a[1]).slice(0,6);
   if(pChart)pChart.destroy();
@@ -158,17 +169,25 @@ async function load(){
     options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:"var(--subtext)",font:{size:10}},grid:{display:false}},y:{ticks:{color:"var(--subtext)",font:{size:10}},grid:{color:"rgba(26,58,92,0.4)"}}},animation:{duration:600}}
   });
 }
+function replacePatchOptions(id, options) {
+  const select = document.getElementById(id);
+  const placeholders = Array.from(select.options).filter(option => option.value === "");
+  select.replaceChildren(...placeholders, ...options);
+  if (placeholders.length) select.value = "";
+  return select;
+}
+
 async function openModal(editData=null){
   const[sy,an]=await Promise.all([authFetch(API+"systems").then(r=>r.json()),authFetch(API+"analysts").then(r=>r.json())]);
-  document.getElementById("f1").innerHTML=sy.map(s=>`<option value="${s.system_id}">${s.system_name}</option>`).join("");
-  document.getElementById("f4").innerHTML=an.map(a=>`<option value="${a.analyst_id}">${a.name}</option>`).join("");
+  const systemSelect = replacePatchOptions("f1", sy.map(s => new Option(s.system_name ?? "", s.system_id)));
+  const analystSelect = replacePatchOptions("f4", an.map(a => new Option(a.name ?? "", a.analyst_id)));
   if(editData){
     document.getElementById("modalTitle").textContent="EDIT PATCH";
     document.getElementById("editId").value=editData.patch_id;
-    document.getElementById("f1").value=editData.system_id;
+    systemSelect.value=editData.system_id;
     document.getElementById("f2").value=editData.patch_name;
     document.getElementById("f3").value=editData.applied_date?.substring(0,10)||"";
-    document.getElementById("f4").value=editData.applied_by;
+    analystSelect.value=editData.applied_by;
   } else {
     document.getElementById("modalTitle").textContent="RECORD PATCH";
     document.getElementById("editId").value="";
