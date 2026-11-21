@@ -46,6 +46,13 @@ animation:blink 2s infinite;}
 .sev-count{font-size:10px;color:#e0e6f0;width:14px;text-align:right;}
 .badge-count{background:#ff3e6c;color:white;font-size:9px;
 padding:1px 5px;border-radius:10px;margin-left:auto;}
+.recent-muted{color:#8899aa;}
+.recent-meta{font-size:11px;}
+.search-group{font-size:10px;color:var(--subtext);letter-spacing:1px;margin:8px 0 4px;}
+.search-result{display:block;color:inherit;text-decoration:none;padding:6px 10px;border:1px solid var(--border);
+border-radius:4px;margin-bottom:4px;font-size:12px;cursor:pointer;}
+.search-empty{color:var(--subtext);font-size:12px;text-align:center;padding:20px;}
+.search-summary{color:var(--subtext);font-size:11px;text-align:center;padding:8px;}
 </style>
 </head>
 <body>
@@ -226,6 +233,58 @@ function animateCounter(id,target){
 }
 const colors=["#ff3e6c","#00d4ff","#00ff88","#ffd700","#7b5ea7","#ff8c00"];
 let lc=null,dc=null,sc=null;
+
+const severityBadges = new Map([
+  ["Critical", "badge badge-critical"], ["High", "badge badge-high"],
+  ["Medium", "badge badge-medium"], ["Low", "badge badge-low"]
+]);
+const statusBadges = new Map([
+  ["Open", "badge badge-open"], ["In Progress", "badge badge-inprogress"],
+  ["Resolved", "badge badge-resolved"]
+]);
+
+function dashboardElement(tag, text, className) {
+  const element = document.createElement(tag);
+  if (text != null) element.textContent = text;
+  if (className) element.className = className;
+  return element;
+}
+
+function dashboardBadge(value, classes) {
+  return dashboardElement("span", value, classes.get(value) ?? "badge");
+}
+
+function renderRecentIncidents(incidents) {
+  const rows = incidents.map(incident => {
+    const row = dashboardElement("tr");
+    const statusCell = dashboardElement("td");
+    statusCell.append(dashboardBadge(incident.status, statusBadges));
+    row.append(
+      dashboardElement("td", `#00${incident.incident_id}`, "recent-muted recent-meta"),
+      dashboardElement("td", incident.threat_name || "?"),
+      dashboardElement("td", incident.system_name || "?", "recent-muted"),
+      statusCell,
+      dashboardElement("td", String(incident.incident_date ?? "").slice(0, 10), "recent-muted recent-meta")
+    );
+    return row;
+  });
+  document.getElementById("tbody").replaceChildren(...rows);
+}
+
+function renderThreatLegend(labels, counts) {
+  const items = document.createDocumentFragment();
+  labels.forEach((label, index) => {
+    const item = dashboardElement("div", null, "legend-item");
+    const left = dashboardElement("div", null, "legend-left");
+    const dot = dashboardElement("div", null, "legend-dot");
+    dot.style.background = colors[index] ?? "";
+    left.append(dot, dashboardElement("span", label));
+    item.append(left, dashboardElement("div", counts[index], "legend-count"));
+    items.append(item);
+  });
+  document.getElementById("donutLegend").replaceChildren(items);
+}
+
 async function load(){
   try{
     document.getElementById("last-updated").textContent="Updated: "+new Date().toLocaleTimeString();
@@ -233,23 +292,16 @@ async function load(){
     animateCounter("s1",d.open_incidents||0); animateCounter("s2",d.critical_threats||0);
     animateCounter("s3",d.resolved||0); animateCounter("s4",d.total_vulns||0); animateCounter("s5",d.total_patches||0);
     document.getElementById("inc-badge").textContent=d.open_incidents||0;
-    document.getElementById("tbody").innerHTML=(d.recent||[]).map(i=>`
-    <tr>
-    <td style="color:#8899aa;font-size:11px;">#00${i.incident_id}</td>
-    <td>${i.threat_name||"?"}</td>
-    <td style="color:#8899aa;">${i.system_name||"?"}</td>
-    <td><span class="badge badge-${(i.status||"open").toLowerCase().replace(/ /g,"")}">${i.status}</span></td>
-    <td style="color:#8899aa;font-size:11px;">${(i.incident_date||"").substring(0,10)}</td>
-    </tr>`).join("");
+    renderRecentIncidents(d.recent || []);
     const threats=await authFetch("http://localhost:3000/api/threats").then(r=>r.json());
-    const types={};
+    const types=Object.create(null);
     threats.forEach(t=>{types[t.threat_type]=(types[t.threat_type]||0)+1;});
     const tLabels=Object.keys(types); const tData=Object.values(types);
     if(dc)dc.destroy();
     dc=new Chart(document.getElementById("donutChart"),{type:"doughnut",data:{labels:tLabels,datasets:[{data:tData,backgroundColor:colors,borderWidth:0}]},options:{plugins:{legend:{display:false}},cutout:"72%",animation:{animateRotate:true,duration:1000}}});
-    document.getElementById("donutLegend").innerHTML=tLabels.map((l,i)=>`<div class="legend-item"><div class="legend-left"><div class="legend-dot" style="background:${colors[i]}"></div>${l}</div><div class="legend-count">${tData[i]}</div></div>`).join("");
+    renderThreatLegend(tLabels, tData);
     const sev={Critical:0,High:0,Medium:0,Low:0};
-    threats.forEach(t=>{if(sev[t.severity_level]!==undefined)sev[t.severity_level]++;});
+    threats.forEach(t=>{if(Object.hasOwn(sev,t.severity_level))sev[t.severity_level]++;});
     const sc2={Critical:"#ff3e6c",High:"#ff8c00",Medium:"#00d4ff",Low:"#00ff88"};
     const maxS=Math.max(...Object.values(sev))||1;
     if(sc)sc.destroy();
@@ -260,6 +312,18 @@ async function load(){
   }catch(err){console.error("Load error:",err);}
 }
 load();
+
+function appendSearchGroup(results, title, rows, destination, renderContent) {
+  if (rows.length === 0) return;
+  results.append(dashboardElement("div", `${title} (${rows.length})`, "search-group"));
+  for (const row of rows.slice(0, 3)) {
+    const card = dashboardElement("a", null, "search-result");
+    card.href = destination;
+    card.append(...renderContent(row));
+    results.append(card);
+  }
+}
+
 async function globalSearch(q){
   q=q.trim().toLowerCase();
   const box=document.getElementById("globalResults"); const body=document.getElementById("globalResultsBody");
@@ -270,14 +334,28 @@ async function globalSearch(q){
     const match=arr=>arr.filter(x=>Object.values(x).some(v=>String(v||"").toLowerCase().includes(q)));
     const tR=match(threats),iR=match(incidents),sR=match(systems),aR=match(analysts);
     const total=tR.length+iR.length+sR.length+aR.length;
-    if(total===0){body.innerHTML='<div style="color:var(--subtext);font-size:12px;text-align:center;padding:20px">No results found for "'+q+'"</div>';return;}
-    let html2='';
-    if(tR.length)html2+=`<div style="font-size:10px;color:var(--subtext);letter-spacing:1px;margin:8px 0 4px">THREATS (${tR.length})</div>`+tR.slice(0,3).map(t=>`<div style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;cursor:pointer" onclick="location.href='threats.html'"><strong>${t.threat_name}</strong> <span class="badge badge-${t.severity_level.toLowerCase()}">${t.severity_level}</span> — ${t.threat_type}</div>`).join('');
-    if(iR.length)html2+=`<div style="font-size:10px;color:var(--subtext);letter-spacing:1px;margin:8px 0 4px">INCIDENTS (${iR.length})</div>`+iR.slice(0,3).map(i=>`<div style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;cursor:pointer" onclick="location.href='incidents.html'"><strong>#${i.incident_id}</strong> — ${i.threat_name||'?'} on ${i.system_name||'?'} <span class="badge badge-${(i.status||'').toLowerCase().replace(/ /g,'')}">${i.status}</span></div>`).join('');
-    if(sR.length)html2+=`<div style="font-size:10px;color:var(--subtext);letter-spacing:1px;margin:8px 0 4px">SYSTEMS (${sR.length})</div>`+sR.slice(0,3).map(s=>`<div style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;cursor:pointer" onclick="location.href='systems.html'"><strong>${s.system_name}</strong> — ${s.os_type} (${s.ip_address})</div>`).join('');
-    if(aR.length)html2+=`<div style="font-size:10px;color:var(--subtext);letter-spacing:1px;margin:8px 0 4px">ANALYSTS (${aR.length})</div>`+aR.slice(0,3).map(a=>`<div style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;cursor:pointer" onclick="location.href='analyst.html'"><strong>${a.name}</strong> — ${a.specialization}</div>`).join('');
-    if(total>9)html2+=`<div style="font-size:11px;color:var(--subtext);text-align:center;padding:8px">...and ${total-9} more results.</div>`;
-    body.innerHTML=html2;
+    if (total === 0) {
+      body.replaceChildren(dashboardElement("div", `No results found for "${q}"`, "search-empty"));
+      return;
+    }
+    const results = document.createDocumentFragment();
+    appendSearchGroup(results, "THREATS", tR, "threats.html", t => [
+      dashboardElement("strong", t.threat_name), " ", dashboardBadge(t.severity_level, severityBadges),
+      dashboardElement("span", ` — ${t.threat_type ?? ""}`)
+    ]);
+    appendSearchGroup(results, "INCIDENTS", iR, "incidents.html", i => [
+      dashboardElement("strong", `#${i.incident_id}`),
+      dashboardElement("span", ` — ${i.threat_name || "?"} on ${i.system_name || "?"} `),
+      dashboardBadge(i.status, statusBadges)
+    ]);
+    appendSearchGroup(results, "SYSTEMS", sR, "systems.html", s => [
+      dashboardElement("strong", s.system_name), dashboardElement("span", ` — ${s.os_type ?? ""} (${s.ip_address ?? ""})`)
+    ]);
+    appendSearchGroup(results, "ANALYSTS", aR, "analyst.html", a => [
+      dashboardElement("strong", a.name), dashboardElement("span", ` — ${a.specialization ?? ""}`)
+    ]);
+    if (total > 9) results.append(dashboardElement("div", `...and ${total - 9} more results.`, "search-summary"));
+    body.replaceChildren(results);
   }catch(e){body.innerHTML='<div style="color:var(--red);font-size:12px">Search error — is the server running?</div>';}
 }
 function clearSearch(){document.getElementById("globalSearch").value="";document.getElementById("globalResults").style.display="none";}
