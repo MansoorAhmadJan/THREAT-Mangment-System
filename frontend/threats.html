@@ -138,18 +138,32 @@ window._table = new CyberTable({
   filterSelects:[{id:"typeFilter",col:"threat_type"},{id:"sevFilter",col:"severity_level"}],
   countId:"recordCount", paginationId:"pagination",
   columns:[{key:"threat_id",label:"ID"},{key:"threat_name",label:"Name"},{key:"threat_type",label:"Type"},{key:"severity_level",label:"Severity"},{key:"description",label:"Description"}],
-  renderRow: t => `
+  renderRow: t => {
+    const htmlEntities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+    const escapeText = value => String(value ?? "").replace(/[&<>"']/g, character => htmlEntities[character]);
+    const badgeClasses = new Map([
+      ["Critical", "badge badge-critical"],
+      ["High", "badge badge-high"],
+      ["Medium", "badge badge-medium"],
+      ["Low", "badge badge-low"]
+    ]);
+    const badgeClass = badgeClasses.get(t.severity_level) ?? "badge";
+    const actionId = Number.isSafeInteger(t.threat_id) ? t.threat_id : null;
+    const disableAction = actionId === null ? " disabled" : "";
+
+    return `
     <tr>
-    <td>${t.threat_id}</td>
-    <td><strong>${t.threat_name}</strong></td>
-    <td>${t.threat_type}</td>
-    <td><span class="badge badge-${t.severity_level.toLowerCase()}">${t.severity_level}</span></td>
-    <td style="max-width:280px;color:var(--subtext);font-size:12px">${t.description||""}</td>
+    <td>${escapeText(t.threat_id)}</td>
+    <td><strong>${escapeText(t.threat_name)}</strong></td>
+    <td>${escapeText(t.threat_type)}</td>
+    <td><span class="${badgeClass}">${escapeText(t.severity_level)}</span></td>
+    <td style="max-width:280px;color:var(--subtext);font-size:12px">${escapeText(t.description)}</td>
     <td style="display:flex;gap:4px">
-      <button class="btn btn-sm" onclick="editModal(${t.threat_id})">EDIT</button>
-      <button class="btn btn-red btn-sm" onclick="del(${t.threat_id})">DEL</button>
+      <button class="btn btn-sm" onclick="editModal(${actionId})"${disableAction}>EDIT</button>
+      <button class="btn btn-red btn-sm" onclick="del(${actionId})"${disableAction}>DEL</button>
     </td>
-    </tr>`
+    </tr>`;
+  }
 });
 async function load(){
   const data=await authFetch(API+"threats").then(r=>r.json());
