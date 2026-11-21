@@ -112,22 +112,34 @@ System Active
 </script>
 <script src="js/app.js"></script>
 <script>
+const systemHtmlEntities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function escapeSystemText(value) {
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  return text.replace(/[&<>"']/g, character => systemHtmlEntities[character]);
+}
+
 window._table = new CyberTable({
   tbodyId:"tbody", searchId:"searchBox",
   filterSelects:[{id:"osFilter",col:"os_type"}],
   countId:"recordCount", paginationId:"pagination",
   columns:[{key:"system_id",label:"ID"},{key:"system_name",label:"Name"},{key:"os_type",label:"OS"},{key:"ip_address",label:"IP"}],
-  renderRow: s => `
+  renderRow: s => {
+    const hasActionId = Number.isSafeInteger(s.system_id);
+    const editAction = hasActionId ? `onclick="editModal(${s.system_id})"` : "disabled";
+    const deleteAction = hasActionId ? `onclick="del(${s.system_id})"` : "disabled";
+
+    return `
     <tr>
-    <td>${s.system_id}</td>
-    <td><strong>${s.system_name}</strong></td>
-    <td>${s.os_type||"?"}</td>
-    <td style="font-family:monospace;color:var(--cyan)">${s.ip_address||"?"}</td>
+    <td>${escapeSystemText(s.system_id)}</td>
+    <td><strong>${escapeSystemText(s.system_name)}</strong></td>
+    <td>${escapeSystemText(s.os_type || "?")}</td>
+    <td style="font-family:monospace;color:var(--cyan)">${escapeSystemText(s.ip_address || "?")}</td>
     <td style="display:flex;gap:4px">
-      <button class="btn btn-sm" onclick="editModal(${s.system_id})">EDIT</button>
-      <button class="btn btn-red btn-sm" onclick="del(${s.system_id})">DEL</button>
+      <button class="btn btn-sm" ${editAction}>EDIT</button>
+      <button class="btn btn-red btn-sm" ${deleteAction}>DEL</button>
     </td>
-    </tr>`
+    </tr>`;
+  }
 });
 async function load(){
   const data=await authFetch(API+"systems").then(r=>r.json());
