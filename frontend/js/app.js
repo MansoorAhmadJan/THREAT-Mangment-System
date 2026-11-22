@@ -285,7 +285,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const script = document.createElement("script");
     script.src = "http://localhost:3000/socket.io/socket.io.js";
     script.onload = () => {
-      const socket = io("http://localhost:3000");
+      const socket = io("http://localhost:3000", {
+        auth: callback => {
+          let token;
+          try {
+            token = JSON.parse(localStorage.getItem("cy_user") || "{}")?.token;
+          } catch { /* A malformed local session supplies no token. */ }
+          callback(typeof token === "string" ? { token } : {});
+        },
+      });
       socket.on("new_incident", data => {
         const icon = data.severity === "Critical" ? "🔴" : data.severity === "High" ? "🟠" : "🟡";
         showToast(`${icon} New incident: ${data.threat} on ${data.system}`,
