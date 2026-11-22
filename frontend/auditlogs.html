@@ -83,6 +83,12 @@ System Active
 </script>
 <script src="js/app.js"></script>
 <script>
+const auditLogHtmlEntities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function escapeAuditLogText(value) {
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  return text.replace(/[&<>"']/g, character => auditLogHtmlEntities[character]);
+}
+
 window._table = new CyberTable({
   tbodyId:"tbody", searchId:"searchBox",
   dateRangeIds:{from:"dateFrom",to:"dateTo",col:"log_time"},
@@ -91,10 +97,10 @@ window._table = new CyberTable({
   columns:[{key:"log_id",label:"ID"},{key:"action",label:"Action"},{key:"performed_by_username",label:"User"},{key:"log_time",label:"Time"}],
   renderRow: l => `
     <tr>
-    <td style="color:var(--subtext)">${l.log_id}</td>
-    <td>${l.action}</td>
-    <td style="color:var(--cyan)">${l.performed_by_username||"system"}</td>
-    <td style="color:var(--subtext);font-size:12px">${l.log_time}</td>
+    <td style="color:var(--subtext)">${escapeAuditLogText(l.log_id)}</td>
+    <td>${escapeAuditLogText(l.action)}</td>
+    <td style="color:var(--cyan)">${escapeAuditLogText(l.performed_by_username || "system")}</td>
+    <td style="color:var(--subtext);font-size:12px">${escapeAuditLogText(l.log_time)}</td>
     </tr>`
 });
 
