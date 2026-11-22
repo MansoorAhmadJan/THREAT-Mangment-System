@@ -113,29 +113,42 @@ System Active
 </script>
 <script src="js/app.js"></script>
 <script>
+const analystHtmlEntities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function escapeAnalystText(value) {
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  return text.replace(/[&<>"']/g, character => analystHtmlEntities[character]);
+}
+
 window._table = new CyberTable({
   tbodyId:"tbody", searchId:"searchBox",
   countId:"recordCount", paginationId:"pagination",
   columns:[{key:"analyst_id",label:"ID"},{key:"name",label:"Name"},{key:"specialization",label:"Specialization"}],
-  renderRow: a => `
+  renderRow: a => {
+    const name = typeof a.name === "string" ? a.name : "";
+    const hasActionId = Number.isSafeInteger(a.analyst_id) && a.analyst_id > 0;
+    const editAction = hasActionId ? `onclick="editModal(${a.analyst_id})"` : "disabled";
+    const deleteAction = hasActionId ? `onclick="del(${a.analyst_id})"` : "disabled";
+
+    return `
     <tr>
-    <td>${a.analyst_id}</td>
+    <td>${escapeAnalystText(a.analyst_id)}</td>
     <td>
       <div style="display:flex;align-items:center;gap:10px">
         <div style="width:28px;height:28px;border-radius:50%;background:rgba(0,212,255,0.15);
           border:1px solid var(--cyan);display:flex;align-items:center;justify-content:center;
           font-size:10px;color:var(--cyan);font-weight:bold;flex-shrink:0">
-          ${a.name.substring(0,2).toUpperCase()}
+          ${escapeAnalystText(name.substring(0,2).toUpperCase())}
         </div>
-        <strong>${a.name}</strong>
+        <strong>${escapeAnalystText(name)}</strong>
       </div>
     </td>
-    <td style="color:var(--subtext)">${a.specialization||"?"}</td>
+    <td style="color:var(--subtext)">${escapeAnalystText(a.specialization || "?")}</td>
     <td style="display:flex;gap:4px">
-      <button class="btn btn-sm" onclick="editModal(${a.analyst_id})">EDIT</button>
-      <button class="btn btn-red btn-sm" onclick="del(${a.analyst_id})">DEL</button>
+      <button class="btn btn-sm" ${editAction}>EDIT</button>
+      <button class="btn btn-red btn-sm" ${deleteAction}>DEL</button>
     </td>
-    </tr>`
+    </tr>`;
+  }
 });
 
 async function load(){
