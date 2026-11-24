@@ -2,6 +2,7 @@ const express = require("express");
 const router  = express.Router();
 const db      = require("../config/db");
 const { body, param, validationResult } = require("express-validator");
+const requireRole = require("../middleware/requireRole");
 
 router.get("/", (req, res) => {
   db.query(`SELECT v.*, s.system_name FROM Vulnerabilities v
@@ -12,6 +13,7 @@ router.get("/", (req, res) => {
 });
 
 router.post("/",
+  requireRole("Admin", "Analyst"),
   body("system_id").isInt().withMessage("system_id must be a number"),
   body("description").trim().notEmpty().withMessage("description is required"),
   body("risk_level").isIn(["Low", "Medium", "High", "Critical"]).withMessage("Invalid risk_level"),
@@ -36,6 +38,7 @@ router.post("/",
 );
 
 router.put("/:id",
+  requireRole("Admin", "Analyst"),
   param("id").isInt().withMessage("Invalid vulnerability id"),
   body("system_id").optional().isInt().withMessage("system_id must be a number"),
   body("description").optional().trim().notEmpty().withMessage("description cannot be empty"),
@@ -61,6 +64,7 @@ router.put("/:id",
 );
 
 router.delete("/:id",
+  requireRole("Admin"),
   param("id").isInt().withMessage("Invalid vulnerability id"),
   (req, res) => {
     const errors = validationResult(req);

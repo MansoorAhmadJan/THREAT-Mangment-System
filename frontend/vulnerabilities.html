@@ -129,28 +129,46 @@ System Active
 <script>
 let vChart=null;
 const riskColors={Critical:"#ff3e6c",High:"#ff8c00",Medium:"#00d4ff",Low:"#00ff88"};
+const riskBadgeClasses = new Map([
+  ["Critical", "badge badge-critical"],
+  ["High", "badge badge-high"],
+  ["Medium", "badge badge-medium"],
+  ["Low", "badge badge-low"]
+]);
+const htmlEntities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function escapeVulnerabilityText(value) {
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  return text.replace(/[&<>"']/g, character => htmlEntities[character]);
+}
+
 window._table=new CyberTable({
   tbodyId:"tbody", searchId:"searchBox",
   filterSelects:[{id:"riskFilter",col:"risk_level"}],
   countId:"recordCount", paginationId:"pagination",
   columns:[{key:"vuln_id",label:"ID"},{key:"system_name",label:"System"},{key:"description",label:"Description"},{key:"risk_level",label:"Risk"}],
-  renderRow: v=>`
+  renderRow: v => {
+    const badgeClass = riskBadgeClasses.get(v.risk_level) ?? "badge";
+    const actionId = Number.isSafeInteger(v.vuln_id) ? v.vuln_id : null;
+    const disableAction = actionId === null ? " disabled" : "";
+
+    return `
     <tr>
-    <td style="color:#8899aa">${v.vuln_id}</td>
-    <td>${v.system_name||"?"}</td>
-    <td style="max-width:320px;color:var(--subtext);font-size:12px">${v.description}</td>
-    <td><span class="badge badge-${v.risk_level.toLowerCase()}">${v.risk_level}</span></td>
+    <td style="color:#8899aa">${escapeVulnerabilityText(v.vuln_id)}</td>
+    <td>${escapeVulnerabilityText(v.system_name || "?")}</td>
+    <td style="max-width:320px;color:var(--subtext);font-size:12px">${escapeVulnerabilityText(v.description)}</td>
+    <td><span class="${badgeClass}">${escapeVulnerabilityText(v.risk_level)}</span></td>
     <td style="display:flex;gap:4px">
-      <button class="btn btn-sm" onclick="editModal(${v.vuln_id})">EDIT</button>
-      <button class="btn btn-red btn-sm" onclick="del(${v.vuln_id})">DEL</button>
+      <button class="btn btn-sm" onclick="editModal(${actionId})"${disableAction}>EDIT</button>
+      <button class="btn btn-red btn-sm" onclick="del(${actionId})"${disableAction}>DEL</button>
     </td>
-    </tr>`
+    </tr>`;
+  }
 });
 async function load(){
   const data=await authFetch(API+"vulnerabilities").then(r=>r.json());
   window._table.load(data);
   const risk={Critical:0,High:0,Medium:0,Low:0};
-  data.forEach(v=>{if(risk[v.risk_level]!==undefined)risk[v.risk_level]++;});
+  data.forEach(v=>{if(riskBadgeClasses.has(v.risk_level))risk[v.risk_level]++;});
   const maxR=Math.max(...Object.values(risk))||1;
   if(vChart)vChart.destroy();
   vChart=new Chart(document.getElementById("vulnChart"),{
@@ -165,22 +183,25 @@ async function load(){
       <div style="width:${(v/maxR)*100}%;height:6px;border-radius:3px;background:${riskColors[k]};transition:width 1s ease;"></div>
     </div>
     <div style="font-size:11px;color:#e0e6f0;width:20px;text-align:right;">${v}</div>
-    <span class="badge badge-${k.toLowerCase()}" style="margin-left:8px;font-size:9px;">${k}</span>
+    <span class="${riskBadgeClasses.get(k)}" style="margin-left:8px;font-size:9px;">${k}</span>
   </div>`).join("");
 }
 async function openModal(editData=null){
   const sys=await authFetch(API+"systems").then(r=>r.json());
-  document.getElementById("f1").innerHTML=sys.map(s=>`<option value="${s.system_id}">${s.system_name}</option>`).join("");
+  const systemSelect = document.getElementById("f1");
+  const placeholders = Array.from(systemSelect.options).filter(option => option.value === "");
+  systemSelect.replaceChildren(...placeholders, ...sys.map(system => new Option(system.system_name ?? "", system.system_id)));
   if(editData){
     document.getElementById("modalTitle").textContent="EDIT VULNERABILITY";
     document.getElementById("editId").value=editData.vuln_id;
-    document.getElementById("f1").value=editData.system_id;
+    systemSelect.value=editData.system_id;
     document.getElementById("f2").value=editData.description;
     document.getElementById("f3").value=editData.risk_level;
   } else {
     document.getElementById("modalTitle").textContent="ADD VULNERABILITY";
     document.getElementById("editId").value="";
     document.getElementById("f2").value="";
+    if (placeholders.length) systemSelect.value = "";
   }
   document.getElementById("modal").classList.add("active");
 }

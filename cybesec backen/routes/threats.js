@@ -2,6 +2,7 @@ const express = require("express");
 const router  = express.Router();
 const db      = require("../config/db");
 const { body, param, validationResult } = require("express-validator");
+const requireRole = require("../middleware/requireRole");
 
 router.get("/", (req, res) => {
   db.query("SELECT * FROM Threats ORDER BY severity_level DESC", (err, rows) => {
@@ -11,6 +12,7 @@ router.get("/", (req, res) => {
 });
 
 router.post("/",
+  requireRole("Admin", "Analyst"),
   body("threat_name").trim().notEmpty().withMessage("threat_name is required"),
   body("threat_type").trim().notEmpty().withMessage("threat_type is required"),
   body("severity_level").isIn(["Low", "Medium", "High", "Critical"]).withMessage("Invalid severity_level"),
@@ -36,6 +38,7 @@ router.post("/",
 );
 
 router.put("/:id",
+  requireRole("Admin", "Analyst"),
   param("id").isInt().withMessage("Invalid threat id"),
   body("threat_name").optional().trim().notEmpty().withMessage("threat_name cannot be empty"),
   body("threat_type").optional().trim().notEmpty().withMessage("threat_type cannot be empty"),
@@ -61,6 +64,7 @@ router.put("/:id",
 );
 
 router.delete("/:id",
+  requireRole("Admin"),
   param("id").isInt().withMessage("Invalid threat id"),
   (req, res) => {
     const errors = validationResult(req);

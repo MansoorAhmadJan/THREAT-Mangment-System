@@ -3,11 +3,13 @@ require('dotenv').config();
 const express = require("express");
 const cors    = require("cors");
 const http    = require("http");
+const { configureIncidentNotifications } = require("./incidentNotifications");
 const app     = express();
 const server  = http.createServer(app);
+const frontendOrigins = ['http://localhost:5500', 'http://127.0.0.1:5500'];
 
 app.use(cors({
-  origin: ['http://localhost:5500', 'http://127.0.0.1:5500'],
+  origin: frontendOrigins,
   methods: ['GET','POST','PUT','DELETE'],
   allowedHeaders: ['Content-Type','Authorization']
 }));
@@ -16,7 +18,8 @@ app.use(express.json());
 /* ── SOCKET.IO ── */
 try {
   const { Server } = require("socket.io");
-  const io = new Server(server, { cors: { origin: "*" } });
+  const io = new Server(server, { cors: { origin: frontendOrigins } });
+  configureIncidentNotifications(io, process.env.JWT_SECRET);
   io.on("connection", socket => {
     console.log("Client connected:", socket.id);
     socket.on("disconnect", () => console.log("Client disconnected:", socket.id));

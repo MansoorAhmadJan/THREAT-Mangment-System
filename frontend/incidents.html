@@ -141,6 +141,22 @@ System Active
 <script src="js/app.js"></script>
 <script>
 let incChart = null;
+const incidentSeverityBadges = new Map([
+  ["Critical", "badge badge-critical"],
+  ["High", "badge badge-high"],
+  ["Medium", "badge badge-medium"],
+  ["Low", "badge badge-low"]
+]);
+const incidentStatusBadges = new Map([
+  ["Open", "badge badge-open"],
+  ["In Progress", "badge badge-inprogress"],
+  ["Resolved", "badge badge-resolved"]
+]);
+const incidentHtmlEntities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function escapeIncidentText(value) {
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  return text.replace(/[&<>"']/g, character => incidentHtmlEntities[character]);
+}
 
 window._table = new CyberTable({
   tbodyId: "tbody",
@@ -162,21 +178,29 @@ window._table = new CyberTable({
     {key:"incident_date",label:"Date"},
     {key:"status",       label:"Status"}
   ],
-  renderRow: i => `
+  renderRow: i => {
+    const severityBadge = incidentSeverityBadges.get(i.severity_level) ?? "badge";
+    const statusBadge = incidentStatusBadges.get(i.status) ?? "badge";
+    const actionId = Number.isSafeInteger(i.incident_id) ? i.incident_id : null;
+    const disableAction = actionId === null ? " disabled" : "";
+    const date = typeof i.incident_date === "string" ? i.incident_date.slice(0, 10) : "";
+
+    return `
     <tr>
-    <td>${i.incident_id}</td>
-    <td>${i.threat_name||"?"}</td>
-    <td><span class="badge badge-${(i.severity_level||"low").toLowerCase()}">${i.severity_level||""}</span></td>
-    <td>${i.system_name||"?"}</td>
-    <td>${i.analyst_name||"?"}</td>
-    <td>${(i.incident_date||"").substring(0,10)}</td>
-    <td><span class="badge badge-${(i.status||"open").toLowerCase().replace(/ /g,"")}">${i.status}</span></td>
+    <td>${escapeIncidentText(i.incident_id)}</td>
+    <td>${escapeIncidentText(i.threat_name || "?")}</td>
+    <td><span class="${severityBadge}">${escapeIncidentText(i.severity_level)}</span></td>
+    <td>${escapeIncidentText(i.system_name || "?")}</td>
+    <td>${escapeIncidentText(i.analyst_name || "?")}</td>
+    <td>${escapeIncidentText(date)}</td>
+    <td><span class="${statusBadge}">${escapeIncidentText(i.status)}</span></td>
     <td style="display:flex;gap:4px;flex-wrap:wrap">
-      <button class="btn btn-green btn-sm" onclick="editModal(${i.incident_id})">EDIT</button>
-      <button class="btn btn-green btn-sm" onclick="resolve(${i.incident_id})">✓</button>
-      <button class="btn btn-red btn-sm" onclick="del(${i.incident_id})">DEL</button>
+      <button class="btn btn-green btn-sm" onclick="editModal(${actionId})"${disableAction}>EDIT</button>
+      <button class="btn btn-green btn-sm" onclick="resolve(${actionId})"${disableAction}>✓</button>
+      <button class="btn btn-red btn-sm" onclick="del(${actionId})"${disableAction}>DEL</button>
     </td>
-    </tr>`
+    </tr>`;
+  }
 });
 
 async function load(){
@@ -184,7 +208,7 @@ async function load(){
   window._table.load(data);
 
   const statusCount = {Open:0,"In Progress":0,Resolved:0};
-  data.forEach(i=>{ if(statusCount[i.status]!==undefined) statusCount[i.status]++; });
+  data.forEach(i=>{ if(incidentStatusBadges.has(i.status)) statusCount[i.status]++; });
   if(incChart) incChart.destroy();
   incChart = new Chart(document.getElementById("incidentChart"),{
     type:"bar",
@@ -204,21 +228,29 @@ async function load(){
   });
 }
 
+function replaceIncidentOptions(id, options) {
+  const select = document.getElementById(id);
+  const placeholders = Array.from(select.options).filter(option => option.value === "");
+  select.replaceChildren(...placeholders, ...options);
+  if (placeholders.length) select.value = "";
+  return select;
+}
+
 async function openModal(editData=null){
   const[th,sy,an]=await Promise.all([
     authFetch(API+"threats").then(r=>r.json()),
     authFetch(API+"systems").then(r=>r.json()),
     authFetch(API+"analysts").then(r=>r.json())
   ]);
-  document.getElementById("f1").innerHTML=th.map(t=>`<option value="${t.threat_id}">${t.threat_name}</option>`).join("");
-  document.getElementById("f2").innerHTML=sy.map(s=>`<option value="${s.system_id}">${s.system_name}</option>`).join("");
-  document.getElementById("f3").innerHTML=an.map(a=>`<option value="${a.analyst_id}">${a.name}</option>`).join("");
+  const threatSelect = replaceIncidentOptions("f1", th.map(t => new Option(t.threat_name ?? "", t.threat_id)));
+  const systemSelect = replaceIncidentOptions("f2", sy.map(s => new Option(s.system_name ?? "", s.system_id)));
+  const analystSelect = replaceIncidentOptions("f3", an.map(a => new Option(a.name ?? "", a.analyst_id)));
   if(editData){
     document.getElementById("modalTitle").textContent="EDIT INCIDENT";
     document.getElementById("editId").value=editData.incident_id;
-    document.getElementById("f1").value=editData.threat_id;
-    document.getElementById("f2").value=editData.system_id;
-    document.getElementById("f3").value=editData.analyst_id;
+    threatSelect.value=editData.threat_id;
+    systemSelect.value=editData.system_id;
+    analystSelect.value=editData.analyst_id;
     document.getElementById("f4").value=editData.status;
   } else {
     document.getElementById("modalTitle").textContent="LOG INCIDENT";

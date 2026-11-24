@@ -2,6 +2,8 @@ const express = require("express");
 const router  = express.Router();
 const db      = require("../config/db");
 const { body, param, validationResult } = require("express-validator");
+const requireRole = require("../middleware/requireRole");
+const { notifyIncidentReaders } = require("../incidentNotifications");
 
 router.get("/", (req, res) => {
   const sql = `
@@ -19,6 +21,7 @@ router.get("/", (req, res) => {
 });
 
 router.post("/",
+  requireRole("Admin", "Analyst"),
   body("threat_id").isInt().withMessage("threat_id must be a number"),
   body("system_id").isInt().withMessage("system_id must be a number"),
   body("analyst_id").isInt().withMessage("analyst_id must be a number"),
@@ -52,16 +55,13 @@ router.post("/",
           const inc = rows[0];
 
           /* #14 — emit real-time notification via Socket.IO */
-          const io = req.app.get("io");
-          if (io) {
-            io.emit("new_incident", {
-              id:       inc.incident_id,
-              threat:   inc.threat_name,
-              system:   inc.system_name,
-              severity: inc.severity_level,
-              status:   inc.status
-            });
-          }
+          notifyIncidentReaders(req.app.get("io"), "new_incident", {
+            id:       inc.incident_id,
+            threat:   inc.threat_name,
+            system:   inc.system_name,
+            severity: inc.severity_level,
+            status:   inc.status
+          });
 
           /* #21 — send email alert for every incident */
           const mailer = req.app.get("mailer");
@@ -93,6 +93,7 @@ router.post("/",
 );
 
 router.put("/:id",
+  requireRole("Admin", "Analyst"),
   param("id").isInt().withMessage("Invalid incident id"),
   body("status").optional().isIn(["Open", "In Progress", "Resolved"]).withMessage("Invalid status"),
   body("threat_id").optional().isInt().withMessage("threat_id must be a number"),
@@ -114,8 +115,7 @@ router.put("/:id",
           (auditErr) => { if (auditErr) console.error("Audit log failed:", auditErr.message); }
         );
 
-        const io = req.app.get("io");
-        if (io) io.emit("incident_updated", { id: req.params.id, status });
+        notifyIncidentReaders(req.app.get("io"), "incident_updated", { id: req.params.id, status });
         res.json({ message: "Status updated" });
       });
     } else {
@@ -136,6 +136,7 @@ router.put("/:id",
 );
 
 router.delete("/:id",
+  requireRole("Admin"),
   param("id").isInt().withMessage("Invalid incident id"),
   (req, res) => {
     const errors = validationResult(req);

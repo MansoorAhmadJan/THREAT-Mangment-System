@@ -2,6 +2,7 @@ const express = require("express");
 const router  = express.Router();
 const db      = require("../config/db");
 const { body, param, validationResult } = require("express-validator");
+const requireRole = require("../middleware/requireRole");
 
 // GET all
 router.get("/", (req, res) => {
@@ -27,6 +28,7 @@ router.get("/:id",
 
 // POST — create
 router.post("/",
+  requireRole("Admin", "Analyst"),
   body("system_name").trim().notEmpty().withMessage("system_name is required"),
   body("os_type").optional().trim(),
   body("ip_address").optional({ checkFalsy: true }).isIP().withMessage("ip_address must be a valid IP"),
@@ -52,6 +54,7 @@ router.post("/",
 
 // PUT — update
 router.put("/:id",
+  requireRole("Admin", "Analyst"),
   param("id").isInt().withMessage("Invalid system id"),
   body("system_name").optional().trim().notEmpty().withMessage("system_name cannot be empty"),
   body("ip_address").optional({ checkFalsy: true }).isIP().withMessage("ip_address must be a valid IP"),
@@ -77,6 +80,7 @@ router.put("/:id",
 
 // DELETE
 router.delete("/:id",
+  requireRole("Admin"),
   param("id").isInt().withMessage("Invalid system id"),
   (req, res) => {
     const errors = validationResult(req);

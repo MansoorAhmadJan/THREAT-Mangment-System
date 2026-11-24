@@ -2,6 +2,7 @@ const express = require("express");
 const router  = express.Router();
 const db      = require("../config/db");
 const { body, param, validationResult } = require("express-validator");
+const requireRole = require("../middleware/requireRole");
 
 // GET all
 router.get("/", (req, res) => {
@@ -27,6 +28,7 @@ router.get("/:id",
 
 // POST — create
 router.post("/",
+  requireRole("Admin", "Analyst"),
   body("name").trim().notEmpty().withMessage("name is required"),
   body("specialization").optional().trim(),
   (req, res) => {
@@ -51,6 +53,7 @@ router.post("/",
 
 // PUT — update
 router.put("/:id",
+  requireRole("Admin", "Analyst"),
   param("id").isInt().withMessage("Invalid analyst id"),
   body("name").optional().trim().notEmpty().withMessage("name cannot be empty"),
   body("specialization").optional().trim(),
@@ -76,6 +79,7 @@ router.put("/:id",
 
 // DELETE
 router.delete("/:id",
+  requireRole("Admin"),
   param("id").isInt().withMessage("Invalid analyst id"),
   (req, res) => {
     const errors = validationResult(req);
